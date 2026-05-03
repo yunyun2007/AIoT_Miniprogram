@@ -521,5 +521,12 @@ Page({
       reminderDistance: null,
       reminderMinutes: null
     });
+  },
+
+  // 前往防盗页面
+  goToAntiTheft() {
+    wx.navigateTo({
+      url: '/pages/anti-theft/anti-theft'
+    });
   }
 });

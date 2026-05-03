@@ -120,6 +120,18 @@
     <van-icon name="arrow" color="#ccc" />
   </view>
 
+  <!-- 防盗模式入口 -->
+  <view class="anti-theft-card" bindtap="goToAntiTheft">
+    <view class="anti-theft-icon">
+      <van-icon name="warning-o" size="40" color="#ff6b35" />
+    </view>
+    <view class="anti-theft-content">
+      <text class="anti-theft-title">防盗模式</text>
+      <text class="anti-theft-hint">监控设备位置，异常移动提醒</text>
+    </view>
+    <van-icon name="arrow" color="#ccc" />
+  </view>
+
   <!-- 控制按钮 -->
   <view class="control-section">
     <block wx:if="{{!isTracking}}">

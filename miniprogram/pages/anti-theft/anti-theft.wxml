@@ -1,0 +1,124 @@
+<view class="container">
+  <!-- 模式切换标签 -->
+  <view class="mode-tabs">
+    <view
+      class="mode-tab {{mode === 'riding' ? 'active' : ''}}"
+      data-mode="riding"
+      bindtap="switchMode"
+    >
+      <van-icon name="orders-o" size="20" />
+      <text>骑行模式</text>
+    </view>
+    <view
+      class="mode-tab {{mode === 'anti-theft' ? 'active' : ''}}"
+      data-mode="anti-theft"
+      bindtap="switchMode"
+    >
+      <van-icon name="warning-o" size="20" />
+      <text>防盗模式</text>
+    </view>
+  </view>
+
+  <!-- 防盗模式内容 -->
+  <block wx:if="{{mode === 'anti-theft'}}">
+    <!-- 设备位置地图 -->
+    <view class="device-map-container">
+      <map
+        id="deviceMap"
+        class="device-map"
+        latitude="{{deviceLocation ? deviceLocation.latitude : latitude}}"
+        longitude="{{deviceLocation ? deviceLocation.longitude : longitude}}"
+        scale="16"
+        show-location
+        markers="{{markers}}"
+        bindtap="viewDeviceOnMap"
+      ></map>
+
+      <!-- 地图上的设备状态标签 -->
+      <view class="map-status-tag" wx:if="{{deviceStatus !== 'offline'}}">
+        <view class="status-dot {{deviceStatus}}"></view>
+        <text>{{deviceStatus === 'moving' ? '移动中' : '静止'}}</text>
+      </view>
+    </view>
+
+    <!-- 设备信息卡片 -->
+    <view class="device-info-card">
+      <view class="info-header">
+        <van-icon name="location-o" size="24" color="#07c160" />
+        <text class="info-title">设备位置</text>
+      </view>
+
+      <view class="info-row">
+        <text class="info-label">状态</text>
+        <text class="info-value">
+          <view class="status-indicator {{deviceStatus}}"></view>
+          {{deviceStatus === 'offline' ? '离线' : deviceStatus === 'moving' ? '移动中' : '静止'}}
+        </text>
+      </view>
+
+      <view class="info-row">
+        <text class="info-label">位置</text>
+        <text class="info-value location-text">
+          {{deviceLocationText || '等待定位...'}}
+        </text>
+      </view>
+
+      <view class="info-row">
+        <text class="info-label">最后更新</text>
+        <text class="info-value">{{lastUpdateTime || '--:--:--'}}</text>
+      </view>
+
+      <button class="btn-locate" bindtap="viewDeviceOnMap" wx:if="{{deviceLocation}}">
+        <van-icon name="search" size="16" /> 在地图上查看
+      </button>
+    </view>
+
+    <!-- 报警记录 -->
+    <view class="alert-section">
+      <view class="section-header">
+        <text class="section-title">报警记录</text>
+        <text class="section-count" wx:if="{{alertHistory.length > 0}}">{{alertHistory.length}}条</text>
+      </view>
+
+      <view class="alert-list" wx:if="{{alertHistory.length > 0}}">
+        <view class="alert-item" wx:for="{{alertHistory}}" wx:key="id">
+          <view class="alert-icon">
+            <van-icon name="warning" color="#ff3b30" size="20" />
+          </view>
+          <view class="alert-content">
+            <text class="alert-message">{{item.message}}</text>
+            <text class="alert-time">{{item.time}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="alert-empty" wx:else>
+        <van-icon name="bell" size="48" color="#ccc" />
+        <text>暂无报警记录</text>
+      </view>
+
+      <button
+        class="btn-clear"
+        bindtap="clearAlertHistory"
+        wx:if="{{alertHistory.length > 0}}"
+      >
+        清除记录
+      </button>
+    </view>
+
+    <!-- 安全提示 -->
+    <view class="security-tip">
+      <van-icon name="info-o" size="16" color="#999" />
+      <text>防盗模式开启后，当设备发生移动时会通过微信服务通知提醒您</text>
+    </view>
+  </block>
+
+  <!-- 骑行模式提示 -->
+  <block wx:else>
+    <view class="riding-hint">
+      <van-icon name="orders-o" size="64" color="#07c160" />
+      <text class="hint-title">当前为骑行模式</text>
+      <text class="hint-desc">切换到防盗模式可监控设备位置移动</text>
+    </view>
+  </block>
+</view>

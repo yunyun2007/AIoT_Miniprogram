@@ -251,3 +251,42 @@
   right: 16rpx;
   padding: 8rpx;
 }
+
+/* 防盗模式入口卡片 */
+.anti-theft-card {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+}
+
+.anti-theft-icon {
+  width: 80rpx;
+  height: 80rpx;
+  background: #fff5f0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+}
+
+.anti-theft-content {
+  flex: 1;
+}
+
+.anti-theft-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  display: block;
+}
+
+.anti-theft-hint {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+  display: block;
+}

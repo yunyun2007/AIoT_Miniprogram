@@ -377,6 +377,63 @@ const iotdaActions = {
     const token = await getIAMToken();
     const result = await updateDeviceShadow(tempConfig.deviceId, tempConfig.projectId, token, desiredProps);
     return { success: true, data: result };
+  },
+
+  // 设置设备属性
+  setDeviceProperty: async (event) => {
+    if (!tempConfig.deviceId || !tempConfig.projectId) {
+      return { success: false, error: '请先配置设备信息' };
+    }
+    if (!tempConfig.iamUsername || !tempConfig.iamPassword) {
+      return { success: false, error: '请先配置IAM用户名和密码' };
+    }
+
+    const { propertyName, propertyValue } = event;
+    if (!propertyName) {
+      return { success: false, error: '缺少属性名' };
+    }
+
+    const desiredProps = {};
+    desiredProps[propertyName] = propertyValue;
+
+    const token = await getIAMToken();
+    const result = await updateDeviceShadow(tempConfig.deviceId, tempConfig.projectId, token, desiredProps);
+    return { success: true, data: result };
+  },
+
+  // 发送防盗报警通知
+  sendAntiTheftAlert: async (event) => {
+    console.log('收到防盗报警请求:', event);
+
+    // 这里可以调用微信订阅消息接口发送通知
+    // 需要使用小程序的 AppID 和 APPSecret 获取 access_token
+    // 然后调用订阅消息接口
+
+    const { deviceId, latitude, longitude, timestamp } = event;
+
+    // TODO: 调用微信订阅消息接口
+    // 需要配置:
+    // 1. 小程序 AppID 和 APPSecret（在环境变量或配置中）
+    // 2. 模板消息 ID（在微信公众平台配置）
+
+    console.log('防盗报警已记录:', {
+      deviceId,
+      latitude,
+      longitude,
+      time: new Date(timestamp).toLocaleString()
+    });
+
+    // 返回成功（实际发送需要配置微信接口）
+    return {
+      success: true,
+      message: '报警已收到',
+      data: {
+        deviceId,
+        latitude,
+        longitude,
+        time: new Date(timestamp).toISOString()
+      }
+    };
   }
 };
 
