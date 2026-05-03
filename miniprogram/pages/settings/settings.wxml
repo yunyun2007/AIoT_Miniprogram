@@ -1,7 +1,37 @@
 <view class="container">
+  <!-- 云端设备绑定 -->
+  <view class="section">
+    <view class="section-title">华为云IoTDA设备</view>
+    <view class="card">
+      <view wx:if="{{!iotdaConfig}}" class="device-empty">
+        <van-icon name="cloud-o" size="48" color="#ccc" />
+        <text class="empty-text">未配置云端设备</text>
+        <button class="btn-bind" bindtap="showIoTDAPopup">配置设备</button>
+      </view>
+      <view wx:else class="device-info">
+        <view class="device-header">
+          <van-icon name="cloud" size="32" color="{{iotdaConnected ? '#07c160' : '#ff9800'}}" />
+          <view class="device-meta">
+            <text class="device-name">{{iotdaConfig.deviceId}}</text>
+            <text class="device-id">设备ID</text>
+          </view>
+          <van-tag type="{{iotdaConnected ? 'success' : 'warning'}}">
+            {{iotdaConnected ? '已连接' : '未连接'}}
+          </van-tag>
+        </view>
+        <view class="device-actions">
+          <button class="btn-action" bindtap="connectIoTDA">
+            {{iotdaConnected ? '断开连接' : '连接'}}
+          </button>
+          <button class="btn-action danger" bindtap="clearIoTDAConfig">清除配置</button>
+        </view>
+      </view>
+    </view>
+  </view>
+
   <!-- 设备绑定 -->
   <view class="section">
-    <view class="section-title">设备绑定</view>
+    <view class="section-title">蓝牙设备绑定</view>
     <view class="card device-card">
       <view wx:if="{{!deviceInfo}}" class="device-empty">
         <van-icon name="tv-o" size="48" color="#ccc" />
@@ -53,9 +83,9 @@
         </view>
       </block>
       <block wx:else>
-        <view 
-          class="contact-item" 
-          wx:for="{{contacts}}" 
+        <view
+          class="contact-item"
+          wx:for="{{contacts}}"
           wx:key="index"
           bindtap="editContact"
           data-index="{{index}}"
@@ -78,22 +108,22 @@
   <view class="section">
     <view class="section-title">安全设置</view>
     <view class="card">
-      <van-cell 
-        title="自动SOS" 
+      <van-cell
+        title="自动SOS"
         label="检测到摔车自动发送位置"
       >
         <switch checked="{{autoSOS}}" bindchange="toggleAutoSOS" color="#07c160" />
       </van-cell>
-      <van-cell 
-        title="骑行中锁屏提醒" 
+      <van-cell
+        title="骑行中锁屏提醒"
         label="锁屏时显示实时数据"
       >
         <switch checked="{{lockScreen}}" bindchange="toggleLockScreen" color="#07c160" />
       </van-cell>
-      <van-cell 
-        title="异常震动阈值" 
-        value="{{sensitivityText}}" 
-        is-link 
+      <van-cell
+        title="异常震动阈值"
+        value="{{sensitivityText}}"
+        is-link
         bindtap="setSensitivity"
       />
     </view>
@@ -108,6 +138,51 @@
     </view>
   </view>
 </view>
+
+<!-- IoTDA配置弹窗 -->
+<van-popup show="{{showIoTDAPopup}}" position="bottom" bind:close="closeIoTDAPopup">
+  <view class="popup-header">
+    <text>配置华为云IoTDA设备</text>
+    <van-icon name="cross" size="40rpx" bindtap="closeIoTDAPopup" />
+  </view>
+  <view class="popup-body">
+    <van-field
+      label="项目ID"
+      placeholder="请输入华为云项目ID"
+      value="{{iotdaForm.projectId}}"
+      bind:change="onIoTDAProjectIdChange"
+    />
+    <van-field
+      label="设备ID"
+      placeholder="请输入华为云IoTDA设备ID"
+      value="{{iotdaForm.deviceId}}"
+      bind:change="onIoTDAIdChange"
+    />
+    <van-field
+      label="设备密钥"
+      placeholder="请输入设备密钥"
+      type="password"
+      value="{{iotdaForm.deviceSecret}}"
+      bind:change="onIoTDASecretChange"
+    />
+    <van-field
+      label="Access Key ID"
+      placeholder="请输入华为云Access Key ID"
+      value="{{iotdaForm.accessKeyId}}"
+      bind:change="onIoTDAKeyIdChange"
+    />
+    <van-field
+      label="Access Secret"
+      placeholder="请输入Access Secret"
+      type="password"
+      value="{{iotdaForm.accessKeySecret}}"
+      bind:change="onIoTDAKeySecretChange"
+    />
+  </view>
+  <view class="popup-footer">
+    <button class="btn-confirm" bindtap="saveIoTDAConfig">保存</button>
+  </view>
+</van-popup>
 
 <!-- 添加/编辑联系人弹窗 -->
 <van-popup show="{{showContactPopup}}" position="bottom" bind:close="closeContactPopup">

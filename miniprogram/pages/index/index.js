@@ -12,15 +12,28 @@ Page({
     longitude: null,    // 当前经度
     pathPoints: [],     // 轨迹点数组
     startTime: null,    // 开始时间
-    timer: null         // 计时器
+    timer: null,        // 计时器
+    // IoTDA传感器数据
+    cloudConnected: false,  // 云端连接状态
+    cloudSpeed: 0,          // 云端速度
+    cloudLatitude: null,    // 云端纬度
+    cloudLongitude: null,  // 云端经度
+    accelerationX: 0,      // 加速度X
+    accelerationY: 0,      // 加速度Y
+    accelerationZ: 0,      // 加速度Z
+    roll: 0,               // 横滚角
+    pitch: 0,              // 俯仰角
+    yaw: 0,                // 偏航角
+    magnitude: 0,          // 加速度幅值
+    showCloudData: false   // 是否显示云端数据
   },
 
   onShow() {
     this.loadTodayData();
+    this.initIoTDA();
   },
 
   onHide() {
-    // 页面隐藏时如果正在骑行，继续后台记录
     if (this.data.isTracking && !this.data.isPaused) {
       console.log('后台继续记录');
     }
@@ -28,6 +41,135 @@ Page({
 
   onUnload() {
     this.stopTracking();
+    this.disconnectCloud();
+  },
+
+  // 初始化IoTDA连接
+  initIoTDA() {
+    const app = getApp();
+    const mqttClient = app.globalData && app.globalData.iotdaClient;
+
+    if (!mqttClient) return;
+
+    // 设置连接状态回调
+    mqttClient.setOnConnectionChange((connected, reason) => {
+      this.setData({ cloudConnected: connected });
+      if (connected) {
+        wx.showToast({ title: '云端已连接', icon: 'success' });
+      } else {
+        console.log('[Index] Cloud disconnected:', reason);
+      }
+    });
+
+    // 设置传感器数据回调
+    mqttClient.setOnSensorData((sensorData) => {
+      this.handleCloudSensorData(sensorData);
+    });
+
+    // 检查是否已配置设备
+    const config = wx.getStorageSync('iotdaConfig');
+    if (config && config.deviceId) {
+      mqttClient.init(config);
+    }
+  },
+
+  // 处理云端传感器数据
+  handleCloudSensorData(data) {
+    const { crashDetector } = getApp().globalData;
+
+    // 更新本地显示
+    this.setData({
+      cloudSpeed: data.speed || 0,
+      cloudLatitude: data.latitude,
+      cloudLongitude: data.longitude,
+      accelerationX: data.accelerationX || 0,
+      accelerationY: data.accelerationY || 0,
+      accelerationZ: data.accelerationZ || 0,
+      roll: data.roll || 0,
+      pitch: data.pitch || 0,
+      yaw: data.yaw || 0,
+      showCloudData: true
+    });
+
+    // 更新app全局数据
+    const app = getApp();
+    app.globalData.sensorData = data;
+
+    // 如果骑行中且有云端GPS，优先使用云端数据更新位置
+    if (this.data.isTracking && data.latitude && data.longitude) {
+      this.updateLocationFromCloud(data);
+    }
+
+    // 处理碰撞检测
+    if (crashDetector && this.data.isTracking) {
+      const result = crashDetector.processAcceleration({
+        accelerationX: data.accelerationX,
+        accelerationY: data.accelerationY,
+        accelerationZ: data.accelerationZ
+      });
+      this.setData({ magnitude: result.magnitude.toFixed(2) });
+    }
+  },
+
+  // 从云端数据更新位置
+  updateLocationFromCloud(cloudData) {
+    const { latitude, longitude, speed } = cloudData;
+    const pageData = this.data;
+
+    if (!pageData.isTracking || pageData.isPaused) return;
+
+    // 计算与上一个点的距离
+    const lastPoint = pageData.pathPoints[pageData.pathPoints.length - 1];
+    const dist = this.calculateDistance(
+      lastPoint.latitude, lastPoint.longitude,
+      latitude, longitude
+    );
+
+    // 过滤漂移（距离小于5米视为GPS漂移）
+    if (dist < 0.005) return;
+
+    const newDistance = pageData.distance + dist;
+    const newPoints = [...pageData.pathPoints, { latitude, longitude }];
+
+    // 使用云端速度计算
+    const currentSpeed = speed > 0 ? speed : 0;
+    const avgSpeed = (newDistance / (pageData.duration / 3600)).toFixed(1);
+
+    // 计算卡路里
+    const caloriesPerKm = 35;
+    const newCalories = Math.floor(newDistance * caloriesPerKm);
+
+    this.setData({
+      latitude,
+      longitude,
+      speed: currentSpeed,
+      avgSpeed: avgSpeed > 0 ? avgSpeed : 0,
+      distance: parseFloat(newDistance.toFixed(2)),
+      calories: newCalories,
+      pathPoints: newPoints
+    });
+
+    this.saveCurrentData();
+  },
+
+  // 连接云端
+  connectCloud() {
+    const app = getApp();
+    const mqttClient = app.globalData.iotdaClient;
+
+    if (mqttClient) {
+      mqttClient.connect();
+    }
+  },
+
+  // 断开云端连接
+  disconnectCloud() {
+    const app = getApp();
+    const mqttClient = app.globalData.iotdaClient;
+
+    if (mqttClient) {
+      mqttClient.disconnect();
+    }
   },
 
   // 加载今日历史数据
@@ -35,7 +177,7 @@ Page({
     const today = new Date().toDateString();
     const records = wx.getStorageSync('rideRecords') || [];
     const todayRecord = records.find(r => r.date === today);
-    
+
     if (todayRecord) {
       this.setData({
         distance: todayRecord.distance || 0,
@@ -49,6 +191,9 @@ Page({
   startRide() {
     if (this.data.isTracking) return;
 
+    // 先连接云端
+    this.connectCloud();
+
     wx.getLocation({
       type: 'gcj02',
       success: (res) => {
@@ -61,11 +206,9 @@ Page({
           pathPoints: [{ latitude: res.latitude, longitude: res.longitude }]
         });
 
-        // 启动后台定位
         this.startLocationUpdate();
-        // 启动计时器
         this.startTimer();
-        
+
         wx.showToast({ title: '开始记录', icon: 'success' });
       },
       fail: () => {
@@ -93,7 +236,6 @@ Page({
       },
       fail: (err) => {
         console.error('后台定位失败', err);
-        // 降级为前台定位
         wx.startLocationUpdate({
           success: () => {
             wx.onLocationChange(this.onLocationChange);
@@ -107,8 +249,13 @@ Page({
   onLocationChange: function(res) {
     const { latitude, longitude, speed, altitude } = res;
     const data = this.data;
-    
+
     if (!data.isTracking || data.isPaused) return;
+
+    // 如果有云端数据，优先使用云端GPS
+    if (data.showCloudData && data.cloudLatitude) {
+      return; // 云端GPS会在handleCloudSensorData中处理
+    }
 
     // 计算与上一个点的距离
     const lastPoint = data.pathPoints[data.pathPoints.length - 1];
@@ -190,6 +337,7 @@ Page({
         if (res.confirm) {
           this.saveRideRecord();
           this.stopTracking();
+          this.disconnectCloud();
           wx.showToast({ title: '已保存', icon: 'success' });
         }
       }
@@ -203,7 +351,7 @@ Page({
     }
     wx.stopLocationUpdate();
     wx.offLocationChange(this.onLocationChange);
-    
+
     this.setData({
       isTracking: false,
       isPaused: false,
@@ -224,7 +372,7 @@ Page({
   saveRideRecord() {
     const records = wx.getStorageSync('rideRecords') || [];
     const today = new Date().toDateString();
-    
+
     const record = {
       date: today,
       distance: this.data.distance,

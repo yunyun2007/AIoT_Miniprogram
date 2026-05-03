@@ -8,26 +8,155 @@ Page({
     sensitivityText: '中等',
     showContactPopup: false,
     editingIndex: -1,
-    form: { name: '', phone: '', isDefault: false }
+    form: { name: '', phone: '', isDefault: false },
+    // IoTDA配置
+    iotdaConfig: null,
+    iotdaConnected: false,
+    showIoTDAPopup: false,
+    iotdaForm: { deviceId: '', deviceSecret: '' }
   },
 
   onShow() {
     this.loadData();
+    this.initIoTDA();
   },
 
   loadData() {
     const deviceInfo = wx.getStorageSync('deviceInfo') || null;
     const contacts = wx.getStorageSync('emergencyContacts') || [];
     const settings = wx.getStorageSync('settings') || {};
-    
+    const iotdaConfig = wx.getStorageSync('iotdaConfig') || null;
+
     this.setData({
       deviceInfo,
       contacts,
       autoSOS: settings.autoSOS !== false,
       lockScreen: settings.lockScreen || false,
       sensitivity: settings.sensitivity || 2,
-      sensitivityText: ['低', '中等', '高'][settings.sensitivity || 2]
+      sensitivityText: ['低', '中等', '高'][settings.sensitivity || 2],
+      iotdaConfig
     });
+  },
+
+  // ========== IoTDA设备配置 ==========
+  initIoTDA() {
+    const app = getApp();
+    const mqttClient = app.globalData && app.globalData.iotdaClient;
+
+    if (!mqttClient) return;
+
+    mqttClient.setOnConnectionChange((connected, reason) => {
+      this.setData({ iotdaConnected: connected });
+    });
+  },
+
+  showIoTDAPopup() {
+    this.setData({
+      showIoTDAPopup: true,
+      iotdaForm: { projectId: '', deviceId: '', deviceSecret: '', accessKeyId: '', accessKeySecret: '' }
+    });
+  },
+
+  closeIoTDAPopup() {
+    this.setData({ showIoTDAPopup: false });
+  },
+
+  onIoTDAProjectIdChange(e) {
+    this.setData({ 'iotdaForm.projectId': e.detail });
+  },
+
+  onIoTDAIdChange(e) {
+    this.setData({ 'iotdaForm.deviceId': e.detail });
+  },
+
+  onIoTDASecretChange(e) {
+    this.setData({ 'iotdaForm.deviceSecret': e.detail });
+  },
+
+  onIoTDAKeyIdChange(e) {
+    this.setData({ 'iotdaForm.accessKeyId': e.detail });
+  },
+
+  onIoTDAKeySecretChange(e) {
+    this.setData({ 'iotdaForm.accessKeySecret': e.detail });
+  },
+
+  saveIoTDAConfig() {
+    const { projectId, deviceId, deviceSecret, accessKeyId, accessKeySecret } = this.data.iotdaForm;
+
+    if (!projectId.trim()) {
+      wx.showToast({ title: '请输入项目ID', icon: 'none' });
+      return;
+    }
+    if (!deviceId.trim()) {
+      wx.showToast({ title: '请输入设备ID', icon: 'none' });
+      return;
+    }
+    if (!deviceSecret.trim()) {
+      wx.showToast({ title: '请输入设备密钥', icon: 'none' });
+      return;
+    }
+    if (!accessKeyId.trim()) {
+      wx.showToast({ title: '请输入Access Key ID', icon: 'none' });
+      return;
+    }
+    if (!accessKeySecret.trim()) {
+      wx.showToast({ title: '请输入Access Secret', icon: 'none' });
+      return;
+    }
+
+    wx.setStorageSync('iotdaConfig', { projectId, deviceId, deviceSecret, accessKeyId, accessKeySecret });
+    this.setData({
+      iotdaConfig: { projectId, deviceId, deviceSecret: '******', accessKeyId, accessKeySecret: '******' },
+      showIoTDAPopup: false
+    });
+
+    wx.showToast({ title: '配置成功', icon: 'success' });
+  },
+
+  clearIoTDAConfig() {
+    wx.showModal({
+      title: '清除配置',
+      content: '确定要清除IoTDA设备配置吗？',
+      success: (res) => {
+        if (res.confirm) {
+          const app = getApp();
+          const mqttClient = app.globalData.iotdaClient;
+          if (mqttClient) {
+            mqttClient.disconnect();
+          }
+          wx.removeStorageSync('iotdaConfig');
+          this.setData({
+            iotdaConfig: null,
+            iotdaConnected: false
+          });
+          wx.showToast({ title: '已清除', icon: 'success' });
+        }
+      }
+    });
+  },
+
+  connectIoTDA() {
+    const { iotdaConnected, iotdaConfig } = this.data;
+    const app = getApp();
+    const mqttClient = app.globalData && app.globalData.iotdaClient;
+
+    if (!mqttClient) {
+      wx.showToast({ title: '客户端未初始化', icon: 'none' });
+      return;
+    }
+
+    if (!iotdaConfig) {
+      wx.showToast({ title: '请先配置设备', icon: 'none' });
+      return;
+    }
+
+    if (iotdaConnected) {
+      mqttClient.disconnect();
+    } else {
+      mqttClient.init(iotdaConfig);
+      mqttClient.connect();
+    }
   },
 
   // ========== 设备绑定 ==========

@@ -1,4 +1,14 @@
 <view class="container">
+  <!-- 云端连接状态 -->
+  <view class="cloud-status" wx:if="{{cloudConnected}}">
+    <van-icon name="cloud" size="16" color="#07c160" />
+    <text class="cloud-text">云端已连接</text>
+  </view>
+  <view class="cloud-status offline" wx:else>
+    <van-icon name="cloud-o" size="16" color="#999" />
+    <text class="cloud-text">云端未连接</text>
+  </view>
+
   <!-- 实时速度（大数字） -->
   <view class="speed-section">
     <view class="speed-value">{{speed}}</view>
@@ -22,6 +32,47 @@
     <view class="data-item">
       <text class="data-value">{{avgSpeed || 0}}</text>
       <text class="data-label">均速</text>
+    </view>
+  </view>
+
+  <!-- 云端IMU数据（骑行时显示） -->
+  <view class="imu-section" wx:if="{{showCloudData && isTracking}}">
+    <view class="section-title">传感器数据</view>
+    <view class="imu-grid">
+      <view class="imu-item">
+        <text class="imu-label">加速度X</text>
+        <text class="imu-value">{{accelerationX.toFixed(2)}} m/s²</text>
+      </view>
+      <view class="imu-item">
+        <text class="imu-label">加速度Y</text>
+        <text class="imu-value">{{accelerationY.toFixed(2)}} m/s²</text>
+      </view>
+      <view class="imu-item">
+        <text class="imu-label">加速度Z</text>
+        <text class="imu-value">{{accelerationZ.toFixed(2)}} m/s²</text>
+      </view>
+      <view class="imu-item">
+        <text class="imu-label">加速度幅值</text>
+        <text class="imu-value {{magnitude > 25 ? 'warning' : ''}}">{{magnitude}} m/s²</text>
+      </view>
+    </view>
+    <view class="imu-grid">
+      <view class="imu-item">
+        <text class="imu-label">横滚角</text>
+        <text class="imu-value">{{roll.toFixed(1)}}°</text>
+      </view>
+      <view class="imu-item">
+        <text class="imu-label">俯仰角</text>
+        <text class="imu-value">{{pitch.toFixed(1)}}°</text>
+      </view>
+      <view class="imu-item">
+        <text class="imu-label">偏航角</text>
+        <text class="imu-value">{{yaw.toFixed(1)}}°</text>
+      </view>
+      <view class="imu-item">
+        <text class="imu-label">云端速度</text>
+        <text class="imu-value">{{cloudSpeed}} km/h</text>
+      </view>
     </view>
   </view>
 
