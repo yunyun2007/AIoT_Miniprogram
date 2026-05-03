@@ -1,7 +1,7 @@
 {
   "pages": [
-    "pages/schedule/schedule",
     "pages/index/index",
+    "pages/schedule/schedule",
     "pages/report/report",
     "pages/settings/settings",
     "pages/navigation/navigation",
