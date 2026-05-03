@@ -486,17 +486,23 @@ async function callMinimaxAPI(prompt) {
       let body = '';
       res.on('data', chunk => body += chunk);
       res.on('end', () => {
+        console.log('Minimax API响应状态:', res.statusCode);
+        console.log('Minimax API响应体:', body.substring(0, 500));
         try {
           const result = JSON.parse(body);
           if (result.choices && result.choices[0] && result.choices[0].messages) {
             resolve(result.choices[0].messages.content);
           } else if (result.choices && result.choices[0] && result.choices[0].text) {
             resolve(result.choices[0].text);
+          } else if (result.choices && result.choices[0] && result.choices[0].message) {
+            resolve(result.choices[0].message.content);
+          } else if (result.base_resp && result.base_resp.status_code !== 0) {
+            reject(new Error('API错误: ' + (result.base_resp.status_msg || result.base_resp.status_code)));
           } else {
-            reject(new Error(result.choices?.message?.content || '解析失败'));
+            reject(new Error('响应格式未知: ' + body.substring(0, 200)));
           }
         } catch (e) {
-          reject(new Error('解析响应失败: ' + body));
+          reject(new Error('JSON解析失败: ' + body.substring(0, 200)));
         }
       });
     });
