@@ -207,19 +207,13 @@ Page({
       if (!step.instruction) return;
 
       // 从 polyline_idx 获取该 step 的起止点索引
-      const idx = step.step_origin_index || 0;
-      const endIdx = step.step_destination_index || 0;
-
-      // 取 polyline 中该 step 的坐标
-      const stepPolyline = [];
+      let lat = null, lng = null;
       if (route.polyline && step.polyline_idx && step.polyline_idx.length >= 2) {
-        const startP = step.polyline_idx[0];
-        const endP = step.polyline_idx[1];
-        // polyline 是 [lat, lng, lat, lng, ...] 格式
-        // 需要从 route.polyline 中取对应索引的点
+        const startIdx = step.polyline_idx[0];
         const decodedPolyline = polyline;
-        if (decodedPolyline[startP]) {
-          stepPolyline.push(decodedPolyline[startP]);
+        if (decodedPolyline[startIdx]) {
+          lat = decodedPolyline[startIdx].lat;
+          lng = decodedPolyline[startIdx].lng;
         }
       }
 
@@ -228,33 +222,30 @@ Page({
         distance: step.distance,
         actDesc: step.act_desc || '',
         dirDesc: step.dir_desc || '',
-        // 取该step的终点坐标
-        lat: stepPolyline.length > 0 ? stepPolyline[0].lat : null,
-        lng: stepPolyline.length > 0 ? stepPolyline[0].lng : null,
-        rawPolyline: step.polyline_idx
+        lat: lat,
+        lng: lng
       });
     });
     console.log('解析的steps:', steps.map(s => ({ i: s.instruction, lat: s.lat, lng: s.lng })));
     return steps;
   },
 
-  // 解码腾讯地图polyline（坐标偏移量编码）
+  // 解码腾讯地图polyline
+  // 格式: [lat1, lng1, dlat2, dlng2, dlat3, dlng3, ...]
+  // 第一个点是绝对坐标(度数)，后续是1e-5度的偏移量
   _decodePolyline(encoded) {
-    if (!encoded || !Array.isArray(encoded)) return [];
+    if (!encoded || !Array.isArray(encoded) || encoded.length < 2) return [];
 
     const points = [];
-    let lat = 0, lng = 0;
+    // 第一个点是绝对坐标（度数）
+    let lat = encoded[0];
+    let lng = encoded[1];
+    points.push({ lat, lng });
 
-    for (let i = 0; i < encoded.length; i += 2) {
-      if (i === 0) {
-        // 第一个点是绝对坐标
-        lat = encoded[i] / 1e5;
-        lng = encoded[i + 1] / 1e5;
-      } else {
-        // 后续是偏移量
-        lat += encoded[i] / 1e5;
-        lng += encoded[i + 1] / 1e5;
-      }
+    // 后续是偏移量，每两个值一组
+    for (let i = 2; i < encoded.length; i += 2) {
+      lat += encoded[i] / 1e5;
+      lng += encoded[i + 1] / 1e5;
       points.push({ lat, lng });
     }
     return points;
@@ -285,6 +276,10 @@ Page({
     this.setData({
       latitude: location.latitude,
       longitude: location.longitude,
+      currentLocation: {
+        latitude: location.latitude,
+        longitude: location.longitude
+      },
       currentLocationText: `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`
     });
 
@@ -306,6 +301,30 @@ Page({
       console.log('routeSteps为空，跳过');
       return;
     }
+    if (!currentLocation || !currentLocation.latitude || !currentLocation.longitude) {
+      console.log('currentLocation无效，先获取位置');
+      wx.getLocation({
+        type: 'gcj02',
+        success: (res) => {
+          this.setData({
+            currentLocation: {
+              latitude: res.latitude,
+              longitude: res.longitude
+            }
+          });
+          this._updateNavWithLocation();
+        }
+      });
+      return;
+    }
+
+    this._updateNavWithLocation();
+  },
+
+  _updateNavWithLocation() {
+    const { routeSteps, currentLocation, currentStepIndex, destination } = this.data;
+    if (!currentLocation || !currentLocation.latitude || !currentLocation.longitude) return;
+    if (!routeSteps || routeSteps.length === 0) return;
 
     let minDist = Infinity;
     let nextStep = null;
@@ -313,11 +332,13 @@ Page({
 
     for (let i = currentStepIndex; i < routeSteps.length; i++) {
       const step = routeSteps[i];
+      console.log(`step ${i}: lat=${step.lat}, lng=${step.lng}`);
       if (step.lat && step.lng && currentLocation) {
         const dist = this.calculateDistance(
           currentLocation.latitude, currentLocation.longitude,
           step.lat, step.lng
         );
+        console.log(`  距离: ${dist}米`);
         if (dist < minDist) {
           minDist = dist;
           nextStep = step;
@@ -327,7 +348,6 @@ Page({
     }
 
     if (nextStep) {
-      // 始终更新导航指令，不管距离多远
       const instruction = nextStep.instruction || '直行';
       const distance = Math.round(minDist);
 
