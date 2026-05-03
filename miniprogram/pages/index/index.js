@@ -236,7 +236,9 @@ Page({
     this.setData({
       isTracking: true,
       isPaused: false,
-      startTime: Date.now()
+      startTime: Date.now(),
+      duration: 0,
+      durationText: '00:00:00'
     });
 
     this.startTimer();
@@ -338,8 +340,10 @@ Page({
   startTimer() {
     const timer = setInterval(() => {
       if (!this.data.isPaused) {
+        const newDuration = this.data.duration + 1;
         this.setData({
-          duration: this.data.duration + 1
+          duration: newDuration,
+          durationText: this.formatTime(newDuration)
         });
         this.saveCurrentData();
       }
@@ -430,5 +434,14 @@ Page({
     wx.navigateTo({
       url: `/pages/map/map?points=${JSON.stringify(this.data.pathPoints)}`
     });
+  },
+
+  // 格式化时长（秒转为 HH:MM:SS）
+  formatTime(seconds) {
+    if (!seconds || seconds < 0) return '00:00:00';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
 });

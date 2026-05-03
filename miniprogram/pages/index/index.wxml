@@ -22,7 +22,7 @@
       <text class="data-label">公里</text>
     </view>
     <view class="data-item">
-      <text class="data-value">{{formatTime(duration)}}</text>
+      <text class="data-value">{{durationText || '00:00:00'}}</text>
       <text class="data-label">时长</text>
     </view>
     <view class="data-item">
