@@ -466,6 +466,10 @@ async function callMinimaxAPI(prompt) {
     messages: [{
       role: 'user',
       content: prompt
+    }],
+    bot_setting: [{
+      bot_name: '骑行助手',
+      content: '你是一个专业的骑行数据分析助手，友善且专业。'
     }]
   });
 
