@@ -47,6 +47,29 @@
     </view>
   </view>
 
+  <!-- 导航地图 -->
+  <view class="nav-map-container" wx:if="{{isNavigating && destination}}">
+    <map
+      id="navMap"
+      class="nav-map"
+      latitude="{{latitude}}"
+      longitude="{{longitude}}"
+      scale="16"
+      show-location
+      polyline="{{routePolyline}}"
+      markers="{{markers}}"
+      enable-overlooking="true"
+    ></map>
+
+    <!-- 顶部目的地信息 -->
+    <view class="map-top-card">
+      <view class="map-destination">
+        <text class="map-dest-label">目的地</text>
+        <text class="map-dest-name">{{destination.title}}</text>
+      </view>
+    </view>
+  </view>
+
   <!-- 导航中状态 -->
   <view class="nav-driving" wx:if="{{isNavigating && destination}}">
     <view class="nav-header">

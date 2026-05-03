@@ -17,7 +17,10 @@ Page({
     currentInstruction: '',
     currentDistance: 0,
     latitude: null,
-    longitude: null
+    longitude: null,
+    // 地图相关
+    routePolyline: [],
+    markers: []
   },
 
   onLoad(options) {
@@ -191,11 +194,38 @@ Page({
           const route = data.result.routes[0];
           const steps = this.parseRouteSteps(route);
 
+          // 解码路线polyline用于地图显示
+          const decodedPolyline = this._decodePolyline(route.polyline);
+
           this.setData({
             route: route,
             routeSteps: steps,
             currentStepIndex: 0,
-            isNavigating: true
+            isNavigating: true,
+            // 地图路线
+            routePolyline: [{
+              points: decodedPolyline,
+              color: '#07c160',
+              width: 6,
+              dottedLine: false
+            }],
+            markers: [{
+              id: 1,
+              latitude: destination.latitude,
+              longitude: destination.longitude,
+              title: destination.title,
+              width: 30,
+              height: 30,
+              callout: {
+                content: destination.title,
+                color: '#333',
+                fontSize: 14,
+                borderRadius: 10,
+                padding: 10,
+                display: 'ALWAYS',
+                bgColor: '#ffffff'
+              }
+            }]
           });
 
           console.log('setData已完成, isNavigating:', true);
@@ -501,7 +531,9 @@ Page({
       currentStepIndex: 0,
       isNavigating: false,
       currentInstruction: '',
-      currentDistance: 0
+      currentDistance: 0,
+      routePolyline: [],
+      markers: []
     });
     this.stopNavigation();
   }
