@@ -455,7 +455,7 @@ function getMinimaxApiKey() {
 
 const AI_CONFIG = {
   minimaxApiKey: getMinimaxApiKey(),
-  minimaxEndpoint: 'https://api.minimax.chat/v1/text/chatcompletion_pro002'
+  minimaxEndpoint: 'https://api.minimax.chat/v1/text/chatcompletion_pro'
 };
 
 // 调用Minimax API生成骑行分析报告
@@ -473,7 +473,7 @@ async function callMinimaxAPI(prompt) {
     const options = {
       hostname: 'api.minimax.chat',
       port: 443,
-      path: '/v1/text/chatcompletion_pro002',
+      path: '/v1/text/chatcompletion_pro',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
