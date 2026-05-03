@@ -473,6 +473,7 @@ async function callMinimaxAPI(prompt) {
     }],
     reply_constraints: {
       sender_type: 'BOT',
+      sender_name: '骑行助手',
       image_quality: 'MEDIUM'
     }
   });
