@@ -465,7 +465,9 @@ async function callMinimaxAPI(prompt) {
     tokens_to_generate: 512,
     messages: [{
       role: 'user',
-      content: prompt
+      content: prompt,
+      sender_name: '用户',
+      sender_type: 'USER'
     }],
     bot_setting: [{
       bot_name: '骑行助手',
