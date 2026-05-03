@@ -248,6 +248,76 @@ async function getDeviceProperties(deviceId, projectId, token) {
   });
 }
 
+// 更新设备影子（desired属性）
+async function updateDeviceShadow(deviceId, projectId, token, desiredProps) {
+  return new Promise((resolve, reject) => {
+    // 先获取当前影子
+    const getOptions = {
+      hostname: IOTDA_CONFIG.brokerUrl,
+      port: 443,
+      path: `/v5/iot/${projectId}/devices/${deviceId}/shadow`,
+      method: 'GET',
+      headers: {
+        'X-Auth-Token': token,
+        'Content-Type': 'application/json'
+      }
+    };
+
+    https.request(getOptions, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          const shadow = JSON.parse(body);
+          const currentVersion = shadow.version || 0;
+
+          // 构建更新请求
+          const updateData = JSON.stringify({
+            shadow: [{
+              service_id: 'Navigation',
+              desired: desiredProps
+            }]
+          });
+
+          const putOptions = {
+            hostname: IOTDA_CONFIG.brokerUrl,
+            port: 443,
+            path: `/v5/iot/${projectId}/devices/${deviceId}/shadow`,
+            method: 'PUT',
+            headers: {
+              'X-Auth-Token': token,
+              'Content-Type': 'application/json',
+              'If-Match': `version=${currentVersion}`
+            }
+          };
+
+          const putReq = https.request(putOptions, (putRes) => {
+            let putBody = '';
+            putRes.on('data', chunk => putBody += chunk);
+            putRes.on('end', () => {
+              if (putRes.statusCode === 200 || putRes.statusCode === 201) {
+                resolve({ success: true, data: JSON.parse(putBody) });
+              } else {
+                reject(new Error(`更新影子失败: ${putRes.statusCode} ${putBody}`));
+              }
+            });
+          });
+
+          putReq.on('error', reject);
+          putReq.setTimeout(15000, () => {
+            putReq.destroy();
+            reject(new Error('请求超时'));
+          });
+          putReq.write(updateData);
+          putReq.end();
+        } catch (e) {
+          reject(new Error('解析影子响应失败: ' + e.message));
+        }
+      });
+    }).on('error', reject).end();
+  });
+}
+
 // IoTDA操作
 const iotdaActions = {
   setConfig: (event) => {
@@ -283,6 +353,30 @@ const iotdaActions = {
     const token = await getIAMToken();
     const props = await getDeviceProperties(event.deviceId, event.projectId, token);
     return { success: true, data: props };
+  },
+
+  // 下发导航指令到设备
+  setNavCommand: async (event) => {
+    if (!tempConfig.deviceId || !tempConfig.projectId) {
+      return { success: false, error: '请先配置设备信息' };
+    }
+    if (!tempConfig.iamUsername || !tempConfig.iamPassword) {
+      return { success: false, error: '请先配置IAM用户名和密码' };
+    }
+
+    const { navInstruction, navDistance, navDestination, navLatitude, navLongitude, navStatus } = event;
+
+    const desiredProps = {};
+    if (navInstruction !== undefined) desiredProps.navInstruction = navInstruction;
+    if (navDistance !== undefined) desiredProps.navDistance = navDistance;
+    if (navDestination !== undefined) desiredProps.navDestination = navDestination;
+    if (navLatitude !== undefined) desiredProps.navLatitude = navLatitude;
+    if (navLongitude !== undefined) desiredProps.navLongitude = navLongitude;
+    if (navStatus !== undefined) desiredProps.navStatus = navStatus;
+
+    const token = await getIAMToken();
+    const result = await updateDeviceShadow(tempConfig.deviceId, tempConfig.projectId, token, desiredProps);
+    return { success: true, data: result };
   }
 };
 

@@ -25,7 +25,11 @@ Page({
     pitch: 0,              // 俯仰角
     yaw: 0,                // 偏航角
     magnitude: 0,          // 加速度幅值
-    showCloudData: false   // 是否显示云端数据
+    showCloudData: false,   // 是否显示云端数据
+    // 导航相关
+    navDestination: '',
+    navInstruction: '',
+    navStatus: 'off'
   },
 
   onShow() {
@@ -433,6 +437,13 @@ Page({
     }
     wx.navigateTo({
       url: `/pages/map/map?points=${JSON.stringify(this.data.pathPoints)}`
+    });
+  },
+
+  // 前往导航页面
+  goToNavigation() {
+    wx.navigateTo({
+      url: '/pages/navigation/navigation'
     });
   },
 

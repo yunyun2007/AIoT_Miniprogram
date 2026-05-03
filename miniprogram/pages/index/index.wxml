@@ -76,6 +76,18 @@
     </view>
   </view>
 
+  <!-- 导航卡片 -->
+  <view class="nav-card" bindtap="goToNavigation">
+    <view class="nav-card-icon">
+      <van-icon name="guide-o" size="40" color="{{navStatus === 'navigating' ? '#07c160' : '#999'}}" />
+    </view>
+    <view class="nav-card-content">
+      <text class="nav-card-title">{{navDestination || '导航'}}</text>
+      <text class="nav-card-hint">{{navStatus === 'navigating' ? navInstruction : '点击设置目的地'}}</text>
+    </view>
+    <van-icon name="arrow" color="#ccc" />
+  </view>
+
   <!-- 控制按钮 -->
   <view class="control-section">
     <block wx:if="{{!isTracking}}">

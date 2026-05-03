@@ -3,7 +3,8 @@
     "pages/schedule/schedule",
     "pages/index/index",
     "pages/report/report",
-    "pages/settings/settings"
+    "pages/settings/settings",
+    "pages/navigation/navigation"
   ],
   "tabBar": {
     "color": "#999999",
@@ -52,7 +53,11 @@
     "van-toast": "@vant/weapp/toast/index",
     "van-dialog": "@vant/weapp/dialog/index",
     "van-loading": "@vant/weapp/loading/index",
-    "van-tag": "@vant/weapp/tag/index"
+    "van-tag": "@vant/weapp/tag/index",
+    "van-search": "@vant/weapp/search/index"
+  },
+  "setting": {
+    "urlCheck": false
   },
   "window": {
     "backgroundTextStyle": "light",

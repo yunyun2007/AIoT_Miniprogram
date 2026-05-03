@@ -1,0 +1,83 @@
+<view class="container">
+  <!-- 搜索框 -->
+  <view class="search-section">
+    <van-search
+      value="{{searchValue}}"
+      placeholder="搜索目的地"
+      bind:change="onSearchChange"
+      show-action
+    />
+  </view>
+
+  <!-- 搜索建议列表 -->
+  <view class="suggestions" wx:if="{{suggestions.length > 0}}">
+    <view
+      class="suggestion-item"
+      wx:for="{{suggestions}}"
+      wx:key="key"
+      bindtap="onSelectDestination"
+      data-item="{{item}}"
+    >
+      <view class="suggestion-main">
+        <van-icon name="location-o" size="20px" color="#07c160" />
+        <view class="suggestion-text">
+          <text class="suggestion-title">{{item.title}}</text>
+          <text class="suggestion-address">{{item.address}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 目的地信息 -->
+  <view class="destination-section" wx:if="{{destination && !isNavigating}}">
+    <view class="destination-card">
+      <van-icon name="location" size="32" color="#07c160" />
+      <view class="destination-info">
+        <text class="destination-title">{{destination.title}}</text>
+        <text class="destination-address">{{destination.address}}</text>
+      </view>
+    </view>
+    <view class="destination-actions">
+      <button class="btn-nav-start" bindtap="startNavigation">
+        <van-icon name="guide-o" size="20px" /> 开始导航
+      </button>
+      <button class="btn-nav-app" bindtap="openInMapApp">
+        <van-icon name="map-o" size="20px" /> 打开地图
+      </button>
+    </view>
+  </view>
+
+  <!-- 导航中状态 -->
+  <view class="nav-driving" wx:if="{{isNavigating && destination}}">
+    <view class="nav-header">
+      <view class="nav-destination">
+        <text class="nav-label">目的地</text>
+        <text class="nav-value">{{destination.title}}</text>
+      </view>
+      <button class="btn-cancel" bindtap="cancelNavigation">取消</button>
+    </view>
+
+    <view class="nav-instruction-card">
+      <view class="nav-turn">
+        <text class="nav-turn-text">{{currentInstruction || '规划路线中...'}}</text>
+      </view>
+      <view class="nav-distance">
+        <text class="distance-value">{{currentDistance}}</text>
+        <text class="distance-unit">米</text>
+      </view>
+    </view>
+
+    <view class="nav-info">
+      <view class="nav-info-item">
+        <van-icon name="location-o" size="24" color="#07c160" />
+        <text>{{currentLocationText}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 无目的地时的提示 -->
+  <view class="empty-hint" wx:if="{{!destination && !isNavigating && suggestions.length === 0}}">
+    <van-icon name="search" size="64" color="#ccc" />
+    <text class="empty-text">输入目的地开始导航</text>
+  </view>
+</view>
