@@ -174,35 +174,38 @@ class IoTDACLoudClient {
   /**
    * 解析传感器数据
    */
-  _parseSensorData(properties) {
+  _parseSensorData(data) {
     // 根据ESP32定义的属性名解析
-    // properties可能是嵌套的，需要根据实际返回格式调整
-    let data = properties;
+    // IoTDA shadow返回格式: { device_id, shadow: [{ service_id, reported: { properties: {...} } }] }
+    let properties = data;
 
-    // 如果有嵌套的properties对象
-    if (properties.properties) {
-      data = properties.properties;
+    // 处理shadow格式
+    if (data.shadow && data.shadow[0] && data.shadow[0].reported) {
+      properties = data.shadow[0].reported.properties || data.shadow[0].reported;
     }
-
-    // 如果有data字段
-    if (properties.data) {
-      data = properties.data;
+    // 处理嵌套的properties对象
+    else if (data.properties) {
+      properties = data.properties;
+    }
+    // 处理data字段
+    else if (data.data) {
+      properties = data.data;
     }
 
     // 确保数据是有效对象
-    if (!data || typeof data !== 'object') return null;
+    if (!properties || typeof properties !== 'object') return null;
 
     return {
-      latitude: data.latitude || data.lat || null,
-      longitude: data.longitude || data.lon || null,
-      speed: data.speed || 0,
-      accelerationX: data.accelerationX || data.ax || 0,
-      accelerationY: data.accelerationY || data.ay || 0,
-      accelerationZ: data.accelerationZ || data.az || 0,
-      roll: data.roll || 0,
-      pitch: data.pitch || 0,
-      yaw: data.yaw || 0,
-      timestamp: data.timestamp || Date.now()
+      latitude: properties.latitude || properties.lat || null,
+      longitude: properties.longitude || properties.lon || null,
+      speed: properties.speed || 0,
+      accelerationX: properties.accelerationX || properties.accX || 0,
+      accelerationY: properties.accelerationY || properties.accY || 0,
+      accelerationZ: properties.accelerationZ || properties.accZ || 0,
+      roll: properties.roll || 0,
+      pitch: properties.pitch || 0,
+      yaw: properties.yaw || 0,
+      timestamp: properties.timestamp || Date.now()
     };
   }
 
