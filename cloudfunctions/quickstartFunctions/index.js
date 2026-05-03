@@ -274,7 +274,7 @@ async function updateDeviceShadow(deviceId, projectId, token, desiredProps) {
           // 构建更新请求
           const updateData = JSON.stringify({
             shadow: [{
-              service_id: 'Navigation',
+              service_id: 'Arduino',
               desired: desiredProps
             }]
           });
