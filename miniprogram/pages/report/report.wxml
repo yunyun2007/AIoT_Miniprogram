@@ -1,0 +1,169 @@
+<view class="container">
+  <!-- 今日概览卡片 -->
+  <view class="card today-card">
+    <view class="card-header">
+      <text class="card-title">今日骑行</text>
+      <text class="card-date">{{todayDate}}</text>
+    </view>
+    <view class="today-stats">
+      <view class="stat-item main">
+        <text class="stat-value">{{todayData.distance}}</text>
+        <text class="stat-unit">公里</text>
+        <text class="stat-label">骑行里程</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item">
+        <text class="stat-value">{{todayData.duration}}</text>
+        <text class="stat-unit">分钟</text>
+        <text class="stat-label">骑行时长</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-value">{{todayData.calories}}</text>
+        <text class="stat-unit">千卡</text>
+        <text class="stat-label">消耗热量</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-value">{{todayData.avgSpeed}}</text>
+        <text class="stat-unit">km/h</text>
+        <text class="stat-label">平均速度</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 本周趋势 -->
+  <view class="card chart-card">
+    <view class="card-header">
+      <text class="card-title">本周趋势</text>
+      <view class="chart-legend">
+        <view class="legend-item">
+          <view class="legend-dot" style="background:#07c160"></view>
+          <text>里程(km)</text>
+        </view>
+        <view class="legend-item">
+          <view class="legend-dot" style="background:#ff9500"></view>
+          <text>时长(分)</text>
+        </view>
+      </view>
+    </view>
+    <view class="chart-container">
+      <view class="chart-bars">
+        <view 
+          class="bar-group" 
+          wx:for="{{weekData}}" 
+          wx:key="day"
+        >
+          <view class="bar-wrapper">
+            <view 
+              class="bar distance" 
+              style="height:{{item.distance * 8}}rpx"
+            ></view>
+            <view 
+              class="bar duration" 
+              style="height:{{item.duration * 2}}rpx"
+            ></view>
+          </view>
+          <text class="bar-label">{{item.day}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 月度统计 -->
+  <view class="card month-card">
+    <view class="card-header">
+      <text class="card-title">本月累计</text>
+      <text class="month-tag">{{currentMonth}}</text>
+    </view>
+    <view class="month-grid">
+      <view class="month-item">
+        <text class="month-value">{{monthData.totalDistance}}</text>
+        <text class="month-unit">公里</text>
+        <text class="month-label">总里程</text>
+      </view>
+      <view class="month-item">
+        <text class="month-value">{{monthData.totalDuration}}</text>
+        <text class="month-unit">小时</text>
+        <text class="month-label">总时长</text>
+      </view>
+      <view class="month-item">
+        <text class="month-value">{{monthData.totalCalories}}</text>
+        <text class="month-unit">千卡</text>
+        <text class="month-label">总消耗</text>
+      </view>
+      <view class="month-item">
+        <text class="month-value">{{monthData.rideCount}}</text>
+        <text class="month-unit">次</text>
+        <text class="month-label">骑行次数</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 历史记录 -->
+  <view class="card history-card">
+    <view class="card-header">
+      <text class="card-title">历史记录</text>
+      <text class="more-link" bindtap="viewAllHistory">查看全部 ></text>
+    </view>
+    <view class="history-list">
+      <view 
+        class="history-item" 
+        wx:for="{{historyList}}" 
+        wx:key="index"
+        bindtap="viewRideDetail"
+        data-index="{{index}}"
+      >
+        <view class="history-left">
+          <view class="history-date">
+            <text class="day">{{item.day}}</text>
+            <text class="month">{{item.month}}月</text>
+          </view>
+          <view class="history-info">
+            <text class="history-title">{{item.title || '日常骑行'}}</text>
+            <text class="history-time">{{item.startTime}} - {{item.endTime}}</text>
+          </view>
+        </view>
+        <view class="history-right">
+          <text class="history-distance">{{item.distance}}km</text>
+          <text class="history-duration">{{item.duration}}分钟</text>
+        </view>
+      </view>
+      <view class="empty-tip" wx:if="{{historyList.length === 0}}">
+        <van-icon name="records-o" size="48" color="#ccc" />
+        <text>暂无骑行记录</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 个人最佳 -->
+  <view class="card pb-card">
+    <view class="card-header">
+      <text class="card-title">个人最佳</text>
+    </view>
+    <view class="pb-list">
+      <view class="pb-item">
+        <van-icon name="medal-o" size="32" color="#ffd700" />
+        <view class="pb-info">
+          <text class="pb-label">最远骑行</text>
+          <text class="pb-value">{{pbData.maxDistance}} 公里</text>
+        </view>
+        <text class="pb-date">{{pbData.maxDistanceDate}}</text>
+      </view>
+      <view class="pb-item">
+        <van-icon name="clock-o" size="32" color="#07c160" />
+        <view class="pb-info">
+          <text class="pb-label">最长时长</text>
+          <text class="pb-value">{{pbData.maxDuration}} 分钟</text>
+        </view>
+        <text class="pb-date">{{pbData.maxDurationDate}}</text>
+      </view>
+      <view class="pb-item">
+        <van-icon name="fire-o" size="32" color="#ff3b30" />
+        <view class="pb-info">
+          <text class="pb-label">最高消耗</text>
+          <text class="pb-value">{{pbData.maxCalories}} 千卡</text>
+        </view>
+        <text class="pb-date">{{pbData.maxCaloriesDate}}</text>
+      </view>
+    </view>
+  </view>
+</view>

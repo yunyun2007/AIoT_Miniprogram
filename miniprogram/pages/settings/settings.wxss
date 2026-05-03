@@ -1,0 +1,194 @@
+.container {
+  padding: 20rpx;
+  background: #f5f5f5;
+  min-height: 100vh;
+}
+
+.section {
+  margin-bottom: 30rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 16rpx;
+  padding-left: 10rpx;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+  padding: 0 10rpx;
+}
+
+.section-tip {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.card {
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+/* 设备绑定 */
+.device-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 40rpx;
+}
+
+.empty-text {
+  color: #999;
+  margin: 20rpx 0 40rpx;
+}
+
+.btn-bind {
+  width: 400rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: #07c160;
+  color: #fff;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+}
+
+.device-info {
+  padding: 30rpx;
+}
+
+.device-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.device-meta {
+  flex: 1;
+  margin-left: 20rpx;
+}
+
+.device-name {
+  font-size: 32rpx;
+  font-weight: bold;
+  display: block;
+}
+
+.device-id {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+.device-detail {
+  background: #f8f8f8;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin-bottom: 30rpx;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 16rpx 0;
+  font-size: 28rpx;
+  color: #666;
+}
+
+.device-actions {
+  display: flex;
+  gap: 20rpx;
+}
+
+.btn-action {
+  flex: 1;
+  height: 72rpx;
+  line-height: 72rpx;
+  background: #f0f0f0;
+  color: #333;
+  border-radius: 36rpx;
+  font-size: 26rpx;
+}
+
+.btn-action.danger {
+  background: #ffebeb;
+  color: #ff3b30;
+}
+
+/* 联系人 */
+.contact-empty {
+  text-align: center;
+  padding: 60rpx;
+  color: #999;
+  font-size: 28rpx;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.contact-main {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.contact-name {
+  font-size: 30rpx;
+  color: #333;
+}
+
+.contact-phone {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.btn-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 90rpx;
+  background: #fff;
+  color: #07c160;
+  font-size: 28rpx;
+  gap: 10rpx;
+}
+
+/* 弹窗 */
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #eee;
+  font-size: 32rpx;
+  font-weight: bold;
+}
+
+.popup-body {
+  padding: 20rpx 30rpx;
+}
+
+.popup-footer {
+  padding: 30rpx;
+}
+
+.btn-confirm {
+  width: 100%;
+  height: 90rpx;
+  line-height: 90rpx;
+  background: #07c160;
+  color: #fff;
+  border-radius: 45rpx;
+  font-size: 32rpx;
+}

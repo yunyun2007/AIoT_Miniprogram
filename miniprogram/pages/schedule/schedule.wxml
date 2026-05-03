@@ -1,0 +1,177 @@
+<!-- 顶部栏 -->
+<view class="header">
+  <text class="title">智能课表</text>
+  <van-button 
+    type="primary" 
+    size="small" 
+    icon="sync-o" 
+    bind:click="syncToDevice"
+    loading="{{isSyncing}}"
+  >
+    同步到设备
+  </van-button>
+</view>
+
+<!-- 星期标题栏 -->
+<view class="week-header">
+  <view class="time-column"></view>
+  <view 
+    class="day-column {{currentDay === index ? 'active' : ''}}" 
+    wx:for="{{weekDays}}" 
+    wx:key="index"
+  >
+    <text class="day-name">{{item.name}}</text>
+    <text class="day-number">{{item.date}}</text>
+  </view>
+</view>
+
+<!-- 课表主体 -->
+<scroll-view scroll-y="true" class="schedule-body" enhanced show-scrollbar>
+  <view class="schedule-grid">
+    <!-- 时间列 -->
+    <view class="time-slots">
+      <view class="time-slot" wx:for="{{timeSlots}}" wx:key="index">
+        <text>{{item.start}}</text>
+        <text class="slot-number">第{{index + 1}}节</text>
+      </view>
+    </view>
+    
+    <!-- 课程格子 -->
+    <view class="course-columns">
+      <view 
+        class="day-column {{currentDay === dayIndex ? 'active' : ''}}" 
+        wx:for="{{[0,1,2,3,4,5,6]}}" 
+        wx:for-item="dayIndex" 
+        wx:key="dayIndex"
+      >
+        <view 
+        class="course-cell {{courseList[dayIndex][slotIndex] ? 'has-course' : ''}} {{courseList[dayIndex][slotIndex] && courseList[dayIndex][slotIndex].color ? courseList[dayIndex][slotIndex].color : ''}}"
+          wx:for="{{timeSlots}}" 
+          wx:for-item="slot" 
+          wx:for-index="slotIndex" 
+          wx:key="slotIndex"
+          bindtap="onCellTap"
+          data-day="{{dayIndex}}"
+          data-slot="{{slotIndex}}"
+          style="height: {{cellHeight}}rpx;"
+        >
+          <block wx:if="{{courseList[dayIndex][slotIndex]}}">
+            <view class="course-content">
+              <text class="course-name">{{courseList[dayIndex][slotIndex].name}}</text>
+              <text class="course-location">
+                <van-icon name="location-o" size="10px" />
+                {{courseList[dayIndex][slotIndex].locationName || '未设置地点'}}
+              </text>
+            </view>
+          </block>
+          <view wx:else class="empty-cell">
+            <van-icon name="plus" size="16px" color="#ccc" />
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</scroll-view>
+
+<!-- 添加/编辑课程弹窗 -->
+<van-popup 
+  show="{{showEditPopup}}" 
+  position="bottom" 
+  round 
+  custom-style="height: 75%;"
+  bind:close="onClosePopup"
+>
+  <view class="popup-header">
+    <text class="popup-title">
+      {{isEdit ? '编辑课程' : '添加课程'}} - {{weekDays[editDay].name}} 第{{editSlot + 1}}节
+    </text>
+    <van-icon name="cross" size="20px" bindtap="onClosePopup" />
+  </view>
+  
+  <scroll-view scroll-y class="popup-body">
+    <van-cell-group inset>
+      <!-- 课程名称 -->
+      <van-field
+        label="课程名称"
+        placeholder="如：高等数学、去图书馆"
+        value="{{currentCourse.name}}"
+        bind:change="onNameChange"
+        required
+        clearable
+      />
+      
+      <!-- 时间段显示 -->
+      <van-cell 
+        title="时间段" 
+        value="{{weekDays[editDay].name}} {{timeSlots[editSlot].start}}-{{timeSlots[editSlot].end}}"
+      />
+      
+      <!-- 地点选择 -->
+      <van-cell 
+        title="上课地点" 
+        is-link 
+        bind:click="chooseLocation"
+        required
+      >
+        <view slot="right-icon" class="location-display">
+          <block wx:if="{{currentCourse.latitude}}">
+            <text class="location-text">{{currentCourse.locationName}}</text>
+            <text class="location-coords">
+              {{currentCourse.latitude.toFixed(6)}}, {{currentCourse.longitude.toFixed(6)}}
+            </text>
+          </block>
+          <text wx:else class="placeholder">点击选择地图位置</text>
+        </view>
+      </van-cell>
+      
+      <!-- 颜色标记 -->
+      <van-cell title="颜色标记">
+        <view class="color-picker">
+          <view 
+            wx:for="{{colorOptions}}" 
+            wx:key="index"
+            class="color-item {{currentCourse.color === item ? 'selected' : ''}} {{item}}"
+            bindtap="selectColor"
+            data-color="{{item}}"
+          ></view>
+        </view>
+      </van-cell>
+      
+      <!-- 备注 -->
+      <van-field
+        label="备注"
+        placeholder="可选：如带课本、提前10分钟出发"
+        value="{{currentCourse.remark}}"
+        bind:change="onRemarkChange"
+        type="textarea"
+        autosize
+        maxlength="100"
+        show-word-limit
+      />
+    </van-cell-group>
+    
+    <!-- 操作按钮 -->
+    <view class="popup-actions">
+      <van-button 
+        wx:if="{{isEdit}}" 
+        type="danger" 
+        plain 
+        block 
+        bind:click="deleteCourse"
+      >
+        删除课程
+      </van-button>
+      <van-button 
+        type="primary" 
+        block 
+        custom-style="margin-top: 16px;"
+        bind:click="saveCourse"
+      >
+        保存
+      </van-button>
+    </view>
+  </scroll-view>
+</van-popup>
+
+<van-toast id="van-toast" />
+<van-dialog id="van-dialog" />

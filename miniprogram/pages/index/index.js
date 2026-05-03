@@ -1,185 +1,260 @@
-// index.js
 Page({
   data: {
-    showTip: false,
-    powerList: [
-      {
-        title: "云托管",
-        tip: "不限语言的全托管容器服务",
-        showItem: false,
-        item: [
-          {
-            type: "cloudbaserun",
-            title: "云托管调用",
-          },
-        ],
-      },
-      {
-        title: "云函数",
-        tip: "安全、免鉴权运行业务代码",
-        showItem: false,
-        item: [
-          {
-            type: "getOpenId",
-            title: "获取OpenId",
-          },
-          {
-            type: "getMiniProgramCode",
-            title: "生成小程序码",
-          },
-        ],
-      },
-      {
-        title: "数据库",
-        tip: "安全稳定的文档型数据库",
-        showItem: false,
-        item: [
-          {
-            type: "createCollection",
-            title: "创建集合",
-          },
-          {
-            type: "selectRecord",
-            title: "增删改查记录",
-          },
-          // {
-          //   title: '聚合操作',
-          //   page: 'sumRecord',
-          // },
-        ],
-      },
-      {
-        title: "云存储",
-        tip: "自带CDN加速文件存储",
-        showItem: false,
-        item: [
-          {
-            type: "uploadFile",
-            title: "上传文件",
-          },
-        ],
-      },
-      {
-        title: "AI 接入能力",
-        tip: "云开发 AI 接入能力",
-        showItem: false,
-        item: [
-          {
-            type: "model-guide",
-            title: "大模型对话指引",
-          },
-        ],
-      },
-      {
-        title: "AI 智能开发小程序",
-        tip: "连接 AI 开发工具与 MCP 开发小程序",
-        type: "ai-assistant",
-        skipEnvCheck: true,
-        showItem: false,
-        item: [],
-      },
-    ],
-    haveCreateCollection: false,
-    title: "",
-    content: "",
+    isTracking: false,
+    isPaused: false,
+    speed: 0,           // 实时速度 km/h
+    avgSpeed: 0,        // 平均速度
+    distance: 0,        // 总里程 km
+    duration: 0,        // 骑行时长 秒
+    calories: 0,        // 卡路里
+    altitude: 0,        // 海拔
+    latitude: null,     // 当前纬度
+    longitude: null,    // 当前经度
+    pathPoints: [],     // 轨迹点数组
+    startTime: null,    // 开始时间
+    timer: null         // 计时器
   },
-  onClickPowerInfo(e) {
-    const app = getApp();
-    const index = e.currentTarget.dataset.index;
-    const powerList = this.data.powerList;
-    const selectedItem = powerList[index];
+
+  onShow() {
+    this.loadTodayData();
+  },
+
+  onHide() {
+    // 页面隐藏时如果正在骑行，继续后台记录
+    if (this.data.isTracking && !this.data.isPaused) {
+      console.log('后台继续记录');
+    }
+  },
+
+  onUnload() {
+    this.stopTracking();
+  },
+
+  // 加载今日历史数据
+  loadTodayData() {
+    const today = new Date().toDateString();
+    const records = wx.getStorageSync('rideRecords') || [];
+    const todayRecord = records.find(r => r.date === today);
     
-    // 检查是否跳过环境配置检测
-    if (!selectedItem.skipEnvCheck && !app.globalData.env) {
-      wx.showModal({
-        title: "提示",
-        content: "请在 `miniprogram/app.js` 中正确配置 `env` 参数",
+    if (todayRecord) {
+      this.setData({
+        distance: todayRecord.distance || 0,
+        duration: todayRecord.duration || 0,
+        calories: todayRecord.calories || 0
       });
+    }
+  },
+
+  // 开始骑行
+  startRide() {
+    if (this.data.isTracking) return;
+
+    wx.getLocation({
+      type: 'gcj02',
+      success: (res) => {
+        this.setData({
+          isTracking: true,
+          isPaused: false,
+          startTime: Date.now(),
+          latitude: res.latitude,
+          longitude: res.longitude,
+          pathPoints: [{ latitude: res.latitude, longitude: res.longitude }]
+        });
+
+        // 启动后台定位
+        this.startLocationUpdate();
+        // 启动计时器
+        this.startTimer();
+        
+        wx.showToast({ title: '开始记录', icon: 'success' });
+      },
+      fail: () => {
+        this.requestLocationAuth();
+      }
+    });
+  },
+
+  // 请求定位权限
+  requestLocationAuth() {
+    wx.showModal({
+      title: '需要定位权限',
+      content: '请在设置中允许使用位置信息',
+      success: (res) => {
+        if (res.confirm) wx.openSetting();
+      }
+    });
+  },
+
+  // 启动后台定位
+  startLocationUpdate() {
+    wx.startLocationUpdateBackground({
+      success: () => {
+        wx.onLocationChange(this.onLocationChange);
+      },
+      fail: (err) => {
+        console.error('后台定位失败', err);
+        // 降级为前台定位
+        wx.startLocationUpdate({
+          success: () => {
+            wx.onLocationChange(this.onLocationChange);
+          }
+        });
+      }
+    });
+  },
+
+  // 位置变化回调（需用箭头函数保持this指向）
+  onLocationChange: function(res) {
+    const { latitude, longitude, speed, altitude } = res;
+    const data = this.data;
+    
+    if (!data.isTracking || data.isPaused) return;
+
+    // 计算与上一个点的距离
+    const lastPoint = data.pathPoints[data.pathPoints.length - 1];
+    const dist = this.calculateDistance(
+      lastPoint.latitude, lastPoint.longitude,
+      latitude, longitude
+    );
+
+    // 过滤漂移（距离小于5米视为GPS漂移）
+    if (dist < 0.005) return;
+
+    const newDistance = data.distance + dist;
+    const newPoints = [...data.pathPoints, { latitude, longitude }];
+
+    // 计算速度（m/s 转 km/h）
+    const currentSpeed = speed > 0 ? (speed * 3.6).toFixed(1) : 0;
+    const avgSpeed = (newDistance / (data.duration / 3600)).toFixed(1);
+
+    // 计算卡路里（简化公式：体重70kg，MET值约8）
+    const caloriesPerKm = 35; // 约35千卡/公里
+    const newCalories = Math.floor(newDistance * caloriesPerKm);
+
+    this.setData({
+      latitude,
+      longitude,
+      altitude: altitude ? altitude.toFixed(1) : 0,
+      speed: currentSpeed,
+      avgSpeed: avgSpeed > 0 ? avgSpeed : 0,
+      distance: parseFloat(newDistance.toFixed(2)),
+      calories: newCalories,
+      pathPoints: newPoints
+    });
+
+    this.saveCurrentData();
+  },
+
+  // 计算两点间距离（Haversine公式）单位：km
+  calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = this.toRad(lat2 - lat1);
+    const dLon = this.toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  },
+
+  toRad(value) {
+    return value * Math.PI / 180;
+  },
+
+  // 启动计时器
+  startTimer() {
+    const timer = setInterval(() => {
+      if (!this.data.isPaused) {
+        this.setData({
+          duration: this.data.duration + 1
+        });
+        this.saveCurrentData();
+      }
+    }, 1000);
+    this.setData({ timer });
+  },
+
+  // 暂停/继续
+  togglePause() {
+    this.setData({ isPaused: !this.data.isPaused });
+  },
+
+  // 结束骑行
+  stopRide() {
+    if (!this.data.isTracking) return;
+
+    wx.showModal({
+      title: '结束骑行',
+      content: `本次骑行 ${this.data.distance} 公里，消耗 ${this.data.calories} 千卡`,
+      success: (res) => {
+        if (res.confirm) {
+          this.saveRideRecord();
+          this.stopTracking();
+          wx.showToast({ title: '已保存', icon: 'success' });
+        }
+      }
+    });
+  },
+
+  // 停止追踪
+  stopTracking() {
+    if (this.data.timer) {
+      clearInterval(this.data.timer);
+    }
+    wx.stopLocationUpdate();
+    wx.offLocationChange(this.onLocationChange);
+    
+    this.setData({
+      isTracking: false,
+      isPaused: false,
+      speed: 0,
+      timer: null
+    });
+  },
+
+  // 保存当前数据（用于恢复）
+  saveCurrentData() {
+    wx.setStorageSync('currentRide', {
+      ...this.data,
+      saveTime: Date.now()
+    });
+  },
+
+  // 保存骑行记录
+  saveRideRecord() {
+    const records = wx.getStorageSync('rideRecords') || [];
+    const today = new Date().toDateString();
+    
+    const record = {
+      date: today,
+      distance: this.data.distance,
+      duration: this.data.duration,
+      calories: this.data.calories,
+      avgSpeed: this.data.avgSpeed,
+      pathPoints: this.data.pathPoints,
+      endTime: new Date().toISOString()
+    };
+
+    // 合并今日数据
+    const existingIndex = records.findIndex(r => r.date === today);
+    if (existingIndex >= 0) {
+      records[existingIndex] = record;
+    } else {
+      records.push(record);
+    }
+
+    wx.setStorageSync('rideRecords', records);
+    wx.removeStorageSync('currentRide');
+  },
+
+  // 查看轨迹地图
+  viewMap() {
+    if (this.data.pathPoints.length < 2) {
+      wx.showToast({ title: '数据不足', icon: 'none' });
       return;
     }
-    if (selectedItem.link) {
-      wx.navigateTo({
-        url: `../web/index?url=${selectedItem.link}&title=${selectedItem.title}`,
-      });
-    } else if (selectedItem.type) {
-      wx.navigateTo({
-        url: `/pages/example/index?envId=${this.data.selectedEnv?.envId}&type=${selectedItem.type}`,
-      });
-    } else if (selectedItem.page) {
-      wx.navigateTo({
-        url: `/pages/${selectedItem.page}/index`,
-      });
-    } else if (
-      selectedItem.title === "数据库" &&
-      !this.data.haveCreateCollection
-    ) {
-      this.onClickDatabase(powerList, selectedItem);
-    } else {
-      selectedItem.showItem = !selectedItem.showItem;
-      this.setData({
-        powerList,
-      });
-    }
-  },
-
-  jumpPage(e) {
-    const { type, page } = e.currentTarget.dataset;
-    console.log("jump page", type, page);
-    if (type) {
-      wx.navigateTo({
-        url: `/pages/example/index?envId=${this.data.selectedEnv?.envId}&type=${type}`,
-      });
-    } else {
-      wx.navigateTo({
-        url: `/pages/${page}/index?envId=${this.data.selectedEnv?.envId}`,
-      });
-    }
-  },
-
-  onClickDatabase(powerList, selectedItem) {
-    wx.showLoading({
-      title: "",
+    wx.navigateTo({
+      url: `/pages/map/map?points=${JSON.stringify(this.data.pathPoints)}`
     });
-    wx.cloud
-      .callFunction({
-        name: "quickstartFunctions",
-        data: {
-          type: "createCollection",
-        },
-      })
-      .then((resp) => {
-        if (resp.result.success) {
-          this.setData({
-            haveCreateCollection: true,
-          });
-        }
-        selectedItem.showItem = !selectedItem.showItem;
-        this.setData({
-          powerList,
-        });
-        wx.hideLoading();
-      })
-      .catch((e) => {
-        wx.hideLoading();
-        const { errCode, errMsg } = e;
-        if (errMsg.includes("Environment not found")) {
-          this.setData({
-            showTip: true,
-            title: "云开发环境未找到",
-            content:
-              "如果已经开通云开发，请检查环境ID与 `miniprogram/app.js` 中的 `env` 参数是否一致。",
-          });
-          return;
-        }
-        if (errMsg.includes("FunctionName parameter could not be found")) {
-          this.setData({
-            showTip: true,
-            title: "请上传云函数",
-            content:
-              "在'cloudfunctions/quickstartFunctions'目录右键，选择【上传并部署-云端安装依赖】，等待云函数上传完成后重试。",
-          });
-          return;
-        }
-      });
-  },
+  }
 });

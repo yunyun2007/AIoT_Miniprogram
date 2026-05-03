@@ -1,0 +1,140 @@
+<view class="container">
+  <!-- 设备绑定 -->
+  <view class="section">
+    <view class="section-title">设备绑定</view>
+    <view class="card device-card">
+      <view wx:if="{{!deviceInfo}}" class="device-empty">
+        <van-icon name="tv-o" size="48" color="#ccc" />
+        <text class="empty-text">暂无绑定设备</text>
+        <button class="btn-bind" bindtap="scanDevice">搜索并绑定设备</button>
+      </view>
+      <view wx:else class="device-info">
+        <view class="device-header">
+          <van-icon name="tv-o" size="32" color="#07c160" />
+          <view class="device-meta">
+            <text class="device-name">{{deviceInfo.name}}</text>
+            <text class="device-id">ID: {{deviceInfo.deviceId}}</text>
+          </view>
+          <van-tag type="success" wx:if="{{deviceInfo.connected}}">已连接</van-tag>
+          <van-tag type="danger" wx:else>未连接</van-tag>
+        </view>
+        <view class="device-detail">
+          <view class="detail-item">
+            <text>信号强度</text>
+            <text>{{deviceInfo.rssi}}dBm</text>
+          </view>
+          <view class="detail-item">
+            <text>固件版本</text>
+            <text>V{{deviceInfo.version}}</text>
+          </view>
+          <view class="detail-item">
+            <text>绑定时间</text>
+            <text>{{deviceInfo.bindTime}}</text>
+          </view>
+        </view>
+        <view class="device-actions">
+          <button class="btn-action" bindtap="connectDevice">{{deviceInfo.connected ? '断开连接' : '重新连接'}}</button>
+          <button class="btn-action danger" bindtap="unbindDevice">解除绑定</button>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 紧急联系人 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">紧急联系人</text>
+      <text class="section-tip">骑行异常时将自动发送通知</text>
+    </view>
+    <view class="card">
+      <block wx:if="{{contacts.length === 0}}">
+        <view class="contact-empty">
+          <text>请添加至少1位紧急联系人</text>
+        </view>
+      </block>
+      <block wx:else>
+        <view 
+          class="contact-item" 
+          wx:for="{{contacts}}" 
+          wx:key="index"
+          bindtap="editContact"
+          data-index="{{index}}"
+        >
+          <view class="contact-main">
+            <text class="contact-name">{{item.name}}</text>
+            <text class="contact-phone">{{item.phone}}</text>
+            <van-tag type="primary" wx:if="{{item.isDefault}}">默认</van-tag>
+          </view>
+          <van-icon name="arrow" color="#ccc" />
+        </view>
+      </block>
+      <button class="btn-add" bindtap="addContact">
+        <van-icon name="plus" size="28rpx" /> 添加联系人
+      </button>
+    </view>
+  </view>
+
+  <!-- 安全设置 -->
+  <view class="section">
+    <view class="section-title">安全设置</view>
+    <view class="card">
+      <van-cell 
+        title="自动SOS" 
+        label="检测到摔车自动发送位置"
+      >
+        <switch checked="{{autoSOS}}" bindchange="toggleAutoSOS" color="#07c160" />
+      </van-cell>
+      <van-cell 
+        title="骑行中锁屏提醒" 
+        label="锁屏时显示实时数据"
+      >
+        <switch checked="{{lockScreen}}" bindchange="toggleLockScreen" color="#07c160" />
+      </van-cell>
+      <van-cell 
+        title="异常震动阈值" 
+        value="{{sensitivityText}}" 
+        is-link 
+        bindtap="setSensitivity"
+      />
+    </view>
+  </view>
+
+  <!-- 关于 -->
+  <view class="section">
+    <view class="card">
+      <van-cell title="使用帮助" is-link bindtap="goHelp" />
+      <van-cell title="关于我们" is-link bindtap="goAbout" />
+      <van-cell title="清除缓存" is-link bindtap="clearCache" />
+    </view>
+  </view>
+</view>
+
+<!-- 添加/编辑联系人弹窗 -->
+<van-popup show="{{showContactPopup}}" position="bottom" bind:close="closeContactPopup">
+  <view class="popup-header">
+    <text>{{editingIndex >= 0 ? '编辑联系人' : '添加联系人'}}</text>
+    <van-icon name="cross" size="40rpx" bindtap="closeContactPopup" />
+  </view>
+  <view class="popup-body">
+    <van-field
+      label="姓名"
+      placeholder="请输入联系人姓名"
+      value="{{form.name}}"
+      bind:change="onNameChange"
+    />
+    <van-field
+      label="手机号"
+      placeholder="请输入手机号"
+      type="number"
+      maxlength="11"
+      value="{{form.phone}}"
+      bind:change="onPhoneChange"
+    />
+    <van-cell title="设为默认联系人">
+      <switch checked="{{form.isDefault}}" bindchange="onDefaultChange" color="#07c160" />
+    </van-cell>
+  </view>
+  <view class="popup-footer">
+    <button class="btn-confirm" bindtap="saveContact">保存</button>
+  </view>
+</van-popup>
