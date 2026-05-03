@@ -53,7 +53,7 @@ Page({
   showIoTDAPopup() {
     this.setData({
       showIoTDAPopup: true,
-      iotdaForm: { projectId: '', deviceId: '', deviceSecret: '', accessKeyId: '', accessKeySecret: '' }
+      iotdaForm: { projectId: '', deviceId: '', deviceSecret: '', iamUsername: '', iamPassword: '' }
     });
   },
 
@@ -73,16 +73,16 @@ Page({
     this.setData({ 'iotdaForm.deviceSecret': e.detail });
   },
 
-  onIoTDAKeyIdChange(e) {
-    this.setData({ 'iotdaForm.accessKeyId': e.detail });
+  onIoTDAUsernameChange(e) {
+    this.setData({ 'iotdaForm.iamUsername': e.detail });
   },
 
-  onIoTDAKeySecretChange(e) {
-    this.setData({ 'iotdaForm.accessKeySecret': e.detail });
+  onIoTDAPasswordChange(e) {
+    this.setData({ 'iotdaForm.iamPassword': e.detail });
   },
 
   saveIoTDAConfig() {
-    const { projectId, deviceId, deviceSecret, accessKeyId, accessKeySecret } = this.data.iotdaForm;
+    const { projectId, deviceId, deviceSecret, iamUsername, iamPassword } = this.data.iotdaForm;
 
     if (!projectId.trim()) {
       wx.showToast({ title: '请输入项目ID', icon: 'none' });
@@ -96,18 +96,18 @@ Page({
       wx.showToast({ title: '请输入设备密钥', icon: 'none' });
       return;
     }
-    if (!accessKeyId.trim()) {
-      wx.showToast({ title: '请输入Access Key ID', icon: 'none' });
+    if (!iamUsername.trim()) {
+      wx.showToast({ title: '请输入IAM用户名', icon: 'none' });
       return;
     }
-    if (!accessKeySecret.trim()) {
-      wx.showToast({ title: '请输入Access Secret', icon: 'none' });
+    if (!iamPassword.trim()) {
+      wx.showToast({ title: '请输入IAM密码', icon: 'none' });
       return;
     }
 
-    wx.setStorageSync('iotdaConfig', { projectId, deviceId, deviceSecret, accessKeyId, accessKeySecret });
+    wx.setStorageSync('iotdaConfig', { projectId, deviceId, deviceSecret, iamUsername, iamPassword });
     this.setData({
-      iotdaConfig: { projectId, deviceId, deviceSecret: '******', accessKeyId, accessKeySecret: '******' },
+      iotdaConfig: { projectId, deviceId, deviceSecret: '******', iamUsername, iamPassword: '******' },
       showIoTDAPopup: false
     });
 

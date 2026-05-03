@@ -166,17 +166,17 @@
       bind:change="onIoTDASecretChange"
     />
     <van-field
-      label="Access Key ID"
-      placeholder="请输入华为云Access Key ID"
-      value="{{iotdaForm.accessKeyId}}"
-      bind:change="onIoTDAKeyIdChange"
+      label="IAM用户名"
+      placeholder="请输入IAM用户名"
+      value="{{iotdaForm.iamUsername}}"
+      bind:change="onIoTDAUsernameChange"
     />
     <van-field
-      label="Access Secret"
-      placeholder="请输入Access Secret"
+      label="IAM密码"
+      placeholder="请输入IAM密码"
       type="password"
-      value="{{iotdaForm.accessKeySecret}}"
-      bind:change="onIoTDAKeySecretChange"
+      value="{{iotdaForm.iamPassword}}"
+      bind:change="onIoTDAPasswordChange"
     />
   </view>
   <view class="popup-footer">

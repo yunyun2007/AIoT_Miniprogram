@@ -124,51 +124,49 @@ const deleteRecord = async (event) => {
 
 // ========== IoTDA功能 ==========
 const IOTDA_CONFIG = {
-  region: 'cn-east-1',
-  brokerUrl: 'iotda.cn-east-1.myhuaweicloud.com',
-  iamEndpoint: 'iam.cn-east-1.myhuaweicloud.com'
+  region: 'cn-east-3',
+  brokerUrl: 'iotda.cn-east-3.myhuaweicloud.com',
+  iamEndpoint: 'iam.cn-east-3.myhuaweicloud.com'
 };
 
+// 临时配置存储
 let tempConfig = {
   deviceId: '',
   deviceSecret: '',
   projectId: '',
-  accessKeyId: '',
-  accessSecret: ''
+  iamUsername: '',
+  iamPassword: ''
 };
 
-// 生成签名
-function generateSignature(stringToSign, secretAccessKey) {
-  const hmac = crypto.createHmac('sha256', secretAccessKey);
-  hmac.update(stringToSign);
-  return hmac.digest('base64');
-}
-
-// 获取IAM Token
+// 获取IAM Token（使用用户名密码认证）
 async function getIAMToken() {
-  const { accessKeyId, accessSecret } = tempConfig;
+  const { iamUsername, iamPassword } = tempConfig;
 
-  if (!accessKeyId || !accessSecret) {
-    throw new Error('请先配置Access Key');
+  if (!iamUsername || !iamPassword) {
+    throw new Error('请先配置IAM用户名和密码');
   }
 
-  const date = new Date();
-  const timestamp = date.toISOString().replace(/\.\d{3}z$/, 'z');
-  const stringToSign = `ANOTFY2IOSERVICEIOTDA${timestamp}`;
-  const signature = generateSignature(stringToSign, accessSecret);
-  const authorization = `ANOTFY2IOSERVICEIOTDA AccessKeyId=${accessKeyId}, Signature=${signature}`;
+  // 主账号用户名（domain name）
+  const domainName = 'hid_eayx4-_zxfp59ql';
 
   const data = JSON.stringify({
     auth: {
       identity: {
-        methods: ['accesskey'],
-        accesskey: {
-          accessKey: accessKeyId,
-          secretKey: accessSecret
+        methods: ['password'],
+        password: {
+          user: {
+            name: iamUsername,
+            password: iamPassword,
+            domain: {
+              name: domainName  // 主账号用户名
+            }
+          }
         }
       },
       scope: {
-        project: { name: IOTDA_CONFIG.region }
+        project: {
+          name: IOTDA_CONFIG.region
+        }
       }
     }
   });
@@ -181,7 +179,6 @@ async function getIAMToken() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Security-Token': authorization,
         'Content-Length': Buffer.byteLength(data)
       }
     };
@@ -256,8 +253,8 @@ const iotdaActions = {
     tempConfig.deviceId = event.deviceId || '';
     tempConfig.deviceSecret = event.deviceSecret || '';
     tempConfig.projectId = event.projectId || '';
-    if (event.accessKeyId) tempConfig.accessKeyId = event.accessKeyId;
-    if (event.accessSecret) tempConfig.accessSecret = event.accessSecret;
+    if (event.iamUsername) tempConfig.iamUsername = event.iamUsername;
+    if (event.iamPassword) tempConfig.iamPassword = event.iamPassword;
     return { success: true, message: '配置已更新' };
   },
 
@@ -265,8 +262,8 @@ const iotdaActions = {
     if (!tempConfig.deviceId || !tempConfig.projectId) {
       return { success: false, error: '请先配置设备信息' };
     }
-    if (!tempConfig.accessKeyId || !tempConfig.accessSecret) {
-      return { success: false, error: '请先配置Access Key' };
+    if (!tempConfig.iamUsername || !tempConfig.iamPassword) {
+      return { success: false, error: '请先配置IAM用户名和密码' };
     }
 
     const token = await getIAMToken();
@@ -278,8 +275,8 @@ const iotdaActions = {
     if (!event.deviceId || !event.projectId) {
       return { success: false, error: '缺少deviceId或projectId' };
     }
-    if (!tempConfig.accessKeyId || !tempConfig.accessSecret) {
-      return { success: false, error: '请先配置Access Key' };
+    if (!tempConfig.iamUsername || !tempConfig.iamPassword) {
+      return { success: false, error: '请先配置IAM用户名和密码' };
     }
 
     const token = await getIAMToken();

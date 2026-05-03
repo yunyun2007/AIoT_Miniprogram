@@ -49,8 +49,8 @@ class IoTDACLoudClient {
     this.deviceId = config.deviceId;
     this.deviceSecret = config.deviceSecret;
     this.projectId = config.projectId;
-    this.accessKeyId = config.accessKeyId;
-    this.accessSecret = config.accessKeySecret;
+    this.iamUsername = config.iamUsername;
+    this.iamPassword = config.iamPassword;
 
     console.log('[IoTDA] Connecting via cloud function...');
 
@@ -77,8 +77,8 @@ class IoTDACLoudClient {
           deviceId: this.deviceId,
           deviceSecret: this.deviceSecret,
           projectId: this.projectId,
-          accessKeyId: this.accessKeyId,
-          accessSecret: this.accessSecret
+          iamUsername: this.iamUsername,
+          iamPassword: this.iamPassword
         }
       }).then(res => {
         if (res.result && res.result.success) {
