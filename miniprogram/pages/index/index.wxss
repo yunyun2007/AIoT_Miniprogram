@@ -181,3 +181,73 @@
   margin-top: 8rpx;
   display: block;
 }
+
+/* 课程提醒卡片 */
+.reminder-card {
+  background: linear-gradient(135deg, #fff5f0 0%, #fff 100%);
+  border: 1px solid #ffd4c4;
+  border-radius: 12px;
+  padding: 30rpx;
+  margin: 16rpx 0;
+  position: relative;
+}
+
+.reminder-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.reminder-title {
+  font-size: 28rpx;
+  color: #ff6b35;
+  font-weight: 600;
+  margin-left: 12rpx;
+}
+
+.reminder-time {
+  font-size: 24rpx;
+  color: #ff6b35;
+  margin-left: auto;
+  background: #fff0e8;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+}
+
+.reminder-course {
+  margin-bottom: 12rpx;
+}
+
+.course-name {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  display: block;
+}
+
+.course-location {
+  font-size: 28rpx;
+  color: #666;
+  display: block;
+  margin-top: 8rpx;
+}
+
+.reminder-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 20rpx;
+}
+
+.reminder-action {
+  display: flex;
+  justify-content: center;
+}
+
+.reminder-dismiss {
+  position: absolute;
+  top: 16rpx;
+  right: 16rpx;
+  padding: 8rpx;
+}

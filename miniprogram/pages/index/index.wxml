@@ -76,6 +76,38 @@
     </view>
   </view>
 
+  <!-- 课程提醒卡片 (课前20分钟显示) -->
+  <view class="reminder-card" wx:if="{{reminderCourse}}" bindtap="goToNavigation">
+    <view class="reminder-header">
+      <van-icon name="clock" size="20" color="#ff6b35" />
+      <text class="reminder-title">即将上课</text>
+      <text class="reminder-time">{{reminderMinutes}}分钟后</text>
+    </view>
+
+    <view class="reminder-course">
+      <text class="course-name">{{reminderCourse.name}}</text>
+      <text class="course-location">{{reminderCourse.locationName}}</text>
+    </view>
+
+    <view class="reminder-info">
+      <text class="course-time">{{reminderCourse.startTime}} - {{reminderCourse.endTime}}</text>
+      <text class="course-distance" wx:if="{{reminderDistance !== null}}">
+        距离 {{reminderDistance}} 米
+      </text>
+      <text class="course-distance" wx:else>距离 -- 米</text>
+    </view>
+
+    <view class="reminder-action">
+      <van-button type="warning" size="small" round>
+        一键导航
+      </van-button>
+    </view>
+
+    <view class="reminder-dismiss" bindtap="dismissReminder">
+      <van-icon name="cross" size="16" color="#999" />
+    </view>
+  </view>
+
   <!-- 导航卡片 -->
   <view class="nav-card" bindtap="goToNavigation">
     <view class="nav-card-icon">

@@ -20,8 +20,46 @@ Page({
     longitude: null
   },
 
-  onLoad() {
-    this.getCurrentLocation();
+  onLoad(options) {
+    // 如果URL中有destination参数，自动开始导航
+    if (options.destination) {
+      try {
+        const destination = JSON.parse(decodeURIComponent(options.destination));
+        console.log('接收到目的地:', destination);
+
+        // 先获取当前位置，然后开始导航
+        wx.getLocation({
+          type: 'gcj02',
+          success: (res) => {
+            this.setData({
+              currentLocation: {
+                latitude: res.latitude,
+                longitude: res.longitude
+              },
+              latitude: res.latitude,
+              longitude: res.longitude,
+              currentLocationText: `${res.latitude.toFixed(6)}, ${res.longitude.toFixed(6)}`,
+              destination: destination
+            }, () => {
+              this.startNavigation();
+            });
+          },
+          fail: () => {
+            this.setData({
+              destination: destination,
+              currentLocationText: '正在获取位置...'
+            });
+            wx.showToast({ title: '正在获取位置...', icon: 'none' });
+            this.getCurrentLocation();
+          }
+        });
+      } catch (e) {
+        console.error('解析destination失败:', e);
+        this.getCurrentLocation();
+      }
+    } else {
+      this.getCurrentLocation();
+    }
   },
 
   onShow() {
@@ -252,10 +290,11 @@ Page({
   },
 
   startLocationUpdate() {
+    const that = this;
     wx.startLocationUpdate({
       success: () => {
         wx.onLocationChange((res) => {
-          this.handleLocationChange(res);
+          that.handleLocationChange(res);
         });
       },
       fail: (err) => {
@@ -263,7 +302,7 @@ Page({
         wx.startLocationUpdateBackground({
           success: () => {
             wx.onLocationChange((res) => {
-              this.handleLocationChange(res);
+              that.handleLocationChange(res);
             });
           }
         });

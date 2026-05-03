@@ -29,12 +29,17 @@ Page({
     // 导航相关
     navDestination: '',
     navInstruction: '',
-    navStatus: 'off'
+    navStatus: 'off',
+    // 课程提醒相关
+    reminderCourse: null,
+    reminderDistance: null,
+    reminderMinutes: null
   },
 
   onShow() {
     this.loadTodayData();
     this.initIoTDA();
+    this.initCourseReminder();
   },
 
   onHide() {
@@ -46,6 +51,7 @@ Page({
   onUnload() {
     this.stopTracking();
     this.disconnectCloud();
+    this.reminderService && this.reminderService.stop();
   },
 
   // 初始化IoTDA连接
@@ -454,5 +460,66 @@ Page({
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  },
+
+  // 初始化课程提醒服务
+  initCourseReminder() {
+    const ReminderService = require('../../services/courseReminder.js');
+
+    this.reminderService = new ReminderService({
+      onReminder: (course) => {
+        this.setData({
+          reminderCourse: course,
+          reminderDistance: course.distance,
+          reminderMinutes: course.diffMinutes
+        });
+      },
+      onDismiss: () => {
+        this.setData({
+          reminderCourse: null,
+          reminderDistance: null,
+          reminderMinutes: null
+        });
+      }
+    });
+
+    this.reminderService.start();
+  },
+
+  // 前往导航页面
+  goToNavigation() {
+    const { reminderCourse } = this.data;
+
+    if (reminderCourse && reminderCourse.latitude && reminderCourse.longitude) {
+      // 清除提醒，避免重复提示
+      this.reminderService && this.reminderService.clearReminder();
+
+      // 通过URL参数传递目的地
+      const destination = {
+        title: reminderCourse.locationName || reminderCourse.name,
+        address: reminderCourse.address || '',
+        latitude: reminderCourse.latitude,
+        longitude: reminderCourse.longitude
+      };
+
+      const encodedDest = encodeURIComponent(JSON.stringify(destination));
+      wx.navigateTo({
+        url: `/pages/navigation/navigation?destination=${encodedDest}`
+      });
+    } else {
+      wx.navigateTo({
+        url: '/pages/navigation/navigation'
+      });
+    }
+  },
+
+  // 关闭提醒卡片
+  dismissReminder() {
+    this.reminderService && this.reminderService.clearReminder();
+    this.setData({
+      reminderCourse: null,
+      reminderDistance: null,
+      reminderMinutes: null
+    });
   }
 });
