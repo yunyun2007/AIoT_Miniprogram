@@ -36,7 +36,10 @@
   },
   "requiredPrivateInfos": [
     "chooseLocation",
-    "getLocation"
+    "getLocation",
+    "startLocationUpdateBackground",
+    "startLocationUpdate",
+    "onLocationChange"
   ],
   "requiredBackgroundModes": ["location"],
   "usingComponents": {

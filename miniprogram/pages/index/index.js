@@ -75,6 +75,8 @@ Page({
 
   // 处理云端传感器数据
   handleCloudSensorData(data) {
+    console.log('[Index] 收到云端传感器数据:', JSON.stringify(data));
+
     const { crashDetector } = getApp().globalData;
 
     // 更新本地显示
@@ -95,7 +97,7 @@ Page({
     const app = getApp();
     app.globalData.sensorData = data;
 
-    // 如果骑行中且有云端GPS，优先使用云端数据更新位置
+    // 如果骑行中且有云端GPS数据，更新位置
     if (this.data.isTracking && data.latitude && data.longitude) {
       this.updateLocationFromCloud(data);
     }
@@ -191,30 +193,20 @@ Page({
   startRide() {
     if (this.data.isTracking) return;
 
-    // 先连接云端
-    this.connectCloud();
+    // 必须云端已连接才能开始骑行（使用ESP32的GPS数据）
+    if (!this.data.cloudConnected) {
+      wx.showToast({ title: '请先连接云端', icon: 'none' });
+      return;
+    }
 
-    wx.getLocation({
-      type: 'gcj02',
-      success: (res) => {
-        this.setData({
-          isTracking: true,
-          isPaused: false,
-          startTime: Date.now(),
-          latitude: res.latitude,
-          longitude: res.longitude,
-          pathPoints: [{ latitude: res.latitude, longitude: res.longitude }]
-        });
-
-        this.startLocationUpdate();
-        this.startTimer();
-
-        wx.showToast({ title: '开始记录', icon: 'success' });
-      },
-      fail: () => {
-        this.requestLocationAuth();
-      }
+    this.setData({
+      isTracking: true,
+      isPaused: false,
+      startTime: Date.now()
     });
+
+    this.startTimer();
+    wx.showToast({ title: '开始记录', icon: 'success' });
   },
 
   // 请求定位权限

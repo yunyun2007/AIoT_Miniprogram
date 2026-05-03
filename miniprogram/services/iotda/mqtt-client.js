@@ -103,12 +103,14 @@ class IoTDACLoudClient {
           action: 'getDeviceData'
         }
       }).then(res => {
+        console.log('[IoTDA] 云函数返回:', JSON.stringify(res.result));
         if (res.result && res.result.success) {
           resolve(res.result.data);
         } else {
           reject(new Error(res.result?.error || '获取数据失败'));
         }
       }).catch(err => {
+        console.error('[IoTDA] 获取数据失败:', err);
         reject(err);
       });
     });
@@ -146,6 +148,8 @@ class IoTDACLoudClient {
    * 处理设备数据
    */
   _processDeviceData(data) {
+    console.log('[IoTDA] 原始数据:', JSON.stringify(data));
+
     if (!data) return;
 
     // IoTDA返回格式可能是 { data: { properties: {...} } }
@@ -158,6 +162,7 @@ class IoTDACLoudClient {
     if (properties && typeof properties === 'object') {
       // 解析传感器数据
       const sensorData = this._parseSensorData(properties);
+      console.log('[IoTDA] 解析后传感器数据:', sensorData);
       if (sensorData && this.onSensorData) {
         this.onSensorData(sensorData);
       }
