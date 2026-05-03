@@ -104,10 +104,14 @@ class IoTDACLoudClient {
         }
       }).then(res => {
         console.log('[IoTDA] 云函数返回:', JSON.stringify(res.result));
-        if (res.result && res.result.success) {
+        if (!res || !res.result) {
+          reject(new Error('云函数响应为空'));
+          return;
+        }
+        if (res.result.success) {
           resolve(res.result.data);
         } else {
-          reject(new Error(res.result?.error || '获取数据失败'));
+          reject(new Error(res.result.error || '获取数据失败'));
         }
       }).catch(err => {
         console.error('[IoTDA] 获取数据失败:', err);
@@ -134,14 +138,21 @@ class IoTDACLoudClient {
   _poll() {
     if (!this.isConnected) return;
 
-    this._fetchDeviceData()
-      .then(data => {
-        this._processDeviceData(data);
-      })
-      .catch(err => {
-        console.log('[IoTDA] Poll error:', err.message);
-        // 轮询错误不中断连接，等待下一次轮询
-      });
+    try {
+      this._fetchDeviceData()
+        .then(data => {
+          if (data) {
+            this._processDeviceData(data);
+          } else {
+            console.log('[IoTDA] 数据为空，跳过处理');
+          }
+        })
+        .catch(err => {
+          console.log('[IoTDA] Poll error:', err?.message || String(err));
+        });
+    } catch (e) {
+      console.log('[IoTDA] Poll exception:', e?.message || String(e));
+    }
   }
 
   /**
@@ -152,20 +163,26 @@ class IoTDACLoudClient {
 
     if (!data) return;
 
-    // IoTDA返回格式可能是 { data: { properties: {...} } }
+    // 获取properties数据（处理云函数返回格式）
     let properties = data;
-
     if (data.data) {
       properties = data.data;
     }
+    // 处理shadow格式：提取shadow[0].reported.properties
+    if (properties && properties.shadow && properties.shadow[0] && properties.shadow[0].reported) {
+      properties = properties.shadow[0].reported.properties;
+    }
 
-    if (properties && typeof properties === 'object') {
-      // 解析传感器数据
-      const sensorData = this._parseSensorData(properties);
-      console.log('[IoTDA] 解析后传感器数据:', sensorData);
-      if (sensorData && this.onSensorData) {
-        this.onSensorData(sensorData);
-      }
+    if (!properties || typeof properties !== 'object') {
+      console.log('[IoTDA] 无法提取有效属性数据, properties:', properties);
+      return;
+    }
+
+    console.log('[IoTDA] 提取的properties:', JSON.stringify(properties));
+    const sensorData = this._parseSensorData(properties);
+    console.log('[IoTDA] 解析后传感器数据:', sensorData);
+    if (sensorData && this.onSensorData) {
+      this.onSensorData(sensorData);
     }
 
     this.lastDeviceData = data;
@@ -175,6 +192,8 @@ class IoTDACLoudClient {
    * 解析传感器数据
    */
   _parseSensorData(data) {
+    if (!data || typeof data !== 'object') return null;
+
     // 根据ESP32定义的属性名解析
     // IoTDA shadow返回格式: { device_id, shadow: [{ service_id, reported: { properties: {...} } }] }
     let properties = data;

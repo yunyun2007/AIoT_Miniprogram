@@ -70,6 +70,13 @@ Page({
     const config = wx.getStorageSync('iotdaConfig');
     if (config && config.deviceId) {
       mqttClient.init(config);
+      // 如果未连接，自动触发连接
+      if (!mqttClient.getConnectionStatus()) {
+        mqttClient.connect();
+      } else {
+        // 客户端已连接，触发回调更新UI
+        this.setData({ cloudConnected: true });
+      }
     }
   },
 
@@ -77,39 +84,55 @@ Page({
   handleCloudSensorData(data) {
     console.log('[Index] 收到云端传感器数据:', JSON.stringify(data));
 
-    const { crashDetector } = getApp().globalData;
+    const app = getApp();
+    const { crashDetector } = app.globalData;
 
-    // 更新本地显示
-    this.setData({
-      cloudSpeed: data.speed || 0,
-      cloudLatitude: data.latitude,
-      cloudLongitude: data.longitude,
-      accelerationX: data.accelerationX || 0,
-      accelerationY: data.accelerationY || 0,
-      accelerationZ: data.accelerationZ || 0,
-      roll: data.roll || 0,
-      pitch: data.pitch || 0,
-      yaw: data.yaw || 0,
-      showCloudData: true
-    });
+    // 更新本地显示（防御性检查）
+    try {
+      this.setData({
+        cloudSpeed: data?.speed ?? 0,
+        cloudLatitude: data?.latitude ?? null,
+        cloudLongitude: data?.longitude ?? null,
+        accelerationX: data?.accelerationX ?? 0,
+        accelerationY: data?.accelerationY ?? 0,
+        accelerationZ: data?.accelerationZ ?? 0,
+        roll: data?.roll ?? 0,
+        pitch: data?.pitch ?? 0,
+        yaw: data?.yaw ?? 0,
+        // 预格式化字符串，避免WXML中调用方法
+        accelerationXText: (data?.accelerationX ?? 0).toFixed(2),
+        accelerationYText: (data?.accelerationY ?? 0).toFixed(2),
+        accelerationZText: (data?.accelerationZ ?? 0).toFixed(2),
+        rollText: (data?.roll ?? 0).toFixed(1),
+        pitchText: (data?.pitch ?? 0).toFixed(1),
+        yawText: (data?.yaw ?? 0).toFixed(1),
+        showCloudData: true
+      });
+      console.log('[Index] setData成功, cloudSpeed:', data?.speed);
+    } catch (e) {
+      console.error('[Index] setData失败:', e);
+    }
 
     // 更新app全局数据
-    const app = getApp();
     app.globalData.sensorData = data;
 
     // 如果骑行中且有云端GPS数据，更新位置
-    if (this.data.isTracking && data.latitude && data.longitude) {
+    if (this.data.isTracking && data?.latitude && data?.longitude) {
       this.updateLocationFromCloud(data);
     }
 
     // 处理碰撞检测
     if (crashDetector && this.data.isTracking) {
-      const result = crashDetector.processAcceleration({
-        accelerationX: data.accelerationX,
-        accelerationY: data.accelerationY,
-        accelerationZ: data.accelerationZ
-      });
-      this.setData({ magnitude: result.magnitude.toFixed(2) });
+      try {
+        const result = crashDetector.processAcceleration({
+          accelerationX: data.accelerationX,
+          accelerationY: data.accelerationY,
+          accelerationZ: data.accelerationZ
+        });
+        this.setData({ magnitude: (result?.magnitude ?? 0).toFixed(2) });
+      } catch (e) {
+        console.error('[Index] 碰撞检测失败:', e);
+      }
     }
   },
 
@@ -119,9 +142,20 @@ Page({
     const pageData = this.data;
 
     if (!pageData.isTracking || pageData.isPaused) return;
+    if (!latitude || !longitude) return;
 
     // 计算与上一个点的距离
     const lastPoint = pageData.pathPoints[pageData.pathPoints.length - 1];
+    if (!lastPoint) {
+      console.log('[Index] 首个轨迹点:', latitude, longitude);
+      this.setData({
+        latitude,
+        longitude,
+        pathPoints: [{ latitude, longitude }]
+      });
+      return;
+    }
+
     const dist = this.calculateDistance(
       lastPoint.latitude, lastPoint.longitude,
       latitude, longitude
