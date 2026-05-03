@@ -473,7 +473,7 @@ async function callMinimaxAPI(prompt) {
     const options = {
       hostname: 'api.minimaxi.com',
       port: 443,
-      path: '/anthropic',
+      path: '/v1/anthropic',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -494,6 +494,8 @@ async function callMinimaxAPI(prompt) {
             resolve(result.content[0].text);
           } else if (result.error) {
             reject(new Error('API错误: ' + (result.error.message || JSON.stringify(result.error))));
+          } else if (result.base_resp && result.base_resp.status_code !== 0) {
+            reject(new Error('API错误: ' + (result.base_resp.status_msg || result.base_resp.status_code)));
           } else {
             reject(new Error('响应格式未知: ' + body.substring(0, 200)));
           }
