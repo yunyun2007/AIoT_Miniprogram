@@ -577,8 +577,16 @@ async function generateRideAnalysis(rideRecords) {
 const aiActions = {
   // 生成骑行分析报告
   analyzeRideData: async (event) => {
+    // 检查API Key是否配置
+    if (!AI_CONFIG.minimaxApiKey || AI_CONFIG.minimaxApiKey === 'YOUR_MINIMAX_API_KEY') {
+      return { success: false, error: '请先配置Minimax API Key' };
+    }
+
     try {
       const rideRecords = event.rideRecords || [];
+      if (!rideRecords || rideRecords.length === 0) {
+        return { success: false, error: '暂无骑行数据' };
+      }
       const report = await generateRideAnalysis(rideRecords);
       return { success: true, data: { report, generatedAt: new Date().toISOString() } };
     } catch (error) {
