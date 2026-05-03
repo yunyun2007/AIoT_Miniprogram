@@ -455,36 +455,25 @@ function getMinimaxApiKey() {
 
 const AI_CONFIG = {
   minimaxApiKey: getMinimaxApiKey(),
-  minimaxEndpoint: 'https://api.minimax.chat/v1/text/chatcompletion_pro'
+  minimaxEndpoint: 'https://api.minimaxi.com/anthropic'
 };
 
 // 调用Minimax API生成骑行分析报告
 async function callMinimaxAPI(prompt) {
   const data = JSON.stringify({
-    model: 'abab6.5s-chat',
-    tokens_to_generate: 512,
+    model: 'anthropic Sonnet',
+    max_tokens: 512,
     messages: [{
       role: 'user',
-      content: prompt,
-      sender_name: '用户',
-      sender_type: 'USER'
-    }],
-    bot_setting: [{
-      bot_name: '骑行助手',
-      content: '你是一个专业的骑行数据分析助手，友善且专业。'
-    }],
-    reply_constraints: {
-      sender_type: 'BOT',
-      sender_name: '骑行助手',
-      image_quality: 'MEDIUM'
-    }
+      content: prompt
+    }]
   });
 
   return new Promise((resolve, reject) => {
     const options = {
-      hostname: 'api.minimax.chat',
+      hostname: 'api.minimaxi.com',
       port: 443,
-      path: '/v1/text/chatcompletion_pro',
+      path: '/anthropic',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -501,14 +490,10 @@ async function callMinimaxAPI(prompt) {
         console.log('Minimax API响应体:', body.substring(0, 500));
         try {
           const result = JSON.parse(body);
-          if (result.choices && result.choices[0] && result.choices[0].messages) {
-            resolve(result.choices[0].messages.content);
-          } else if (result.choices && result.choices[0] && result.choices[0].text) {
-            resolve(result.choices[0].text);
-          } else if (result.choices && result.choices[0] && result.choices[0].message) {
-            resolve(result.choices[0].message.content);
-          } else if (result.base_resp && result.base_resp.status_code !== 0) {
-            reject(new Error('API错误: ' + (result.base_resp.status_msg || result.base_resp.status_code)));
+          if (result.content && result.content[0] && result.content[0].text) {
+            resolve(result.content[0].text);
+          } else if (result.error) {
+            reject(new Error('API错误: ' + (result.error.message || JSON.stringify(result.error))));
           } else {
             reject(new Error('响应格式未知: ' + body.substring(0, 200)));
           }
