@@ -23,11 +23,16 @@ Page({
       maxDurationDate: '',
       maxCalories: 0,
       maxCaloriesDate: ''
-    }
+    },
+    // AI报告相关
+    aiReportLoading: false,
+    aiReport: '',
+    aiReportGeneratedAt: ''
   },
 
   onShow() {
     this.loadAllData();
+    this.loadAIReport();
   },
 
   loadAllData() {
@@ -187,6 +192,70 @@ Page({
     const index = e.currentTarget.dataset.index;
     wx.navigateTo({
       url: `/pages/rideDetail/rideDetail?index=${index}`
+    });
+  },
+
+  // 加载已保存的AI报告
+  loadAIReport() {
+    const records = wx.getStorageSync('rideRecords') || [];
+    if (records.length === 0) return;
+
+    // 取最新一条有AI报告的记录
+    const sorted = records.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const recordWithReport = sorted.find(r => r.aiReport);
+    if (recordWithReport) {
+      this.setData({
+        aiReport: recordWithReport.aiReport,
+        aiReportGeneratedAt: recordWithReport.aiReportGeneratedAt || ''
+      });
+    }
+  },
+
+  // 生成AI分析报告
+  generateAIReport() {
+    if (this.data.aiReportLoading) return;
+
+    this.setData({ aiReportLoading: true });
+
+    const records = wx.getStorageSync('rideRecords') || [];
+    if (records.length === 0) {
+      wx.showToast({ title: '暂无骑行数据', icon: 'none' });
+      this.setData({ aiReportLoading: false });
+      return;
+    }
+
+    wx.cloud.callFunction({
+      name: 'quickstartFunctions',
+      data: {
+        action: 'analyzeRideData',
+        rideRecords: records
+      },
+      success: (res) => {
+        console.log('AI分析结果:', res);
+        if (res.result && res.result.success) {
+          const { report, generatedAt } = res.result.data;
+          this.setData({
+            aiReport: report,
+            aiReportGeneratedAt: generatedAt
+          });
+
+          // 保存到最新一条记录
+          const sorted = records.sort((a, b) => new Date(b.date) - new Date(a.date));
+          const latestRecord = sorted[0];
+          latestRecord.aiReport = report;
+          latestRecord.aiReportGeneratedAt = generatedAt;
+          wx.setStorageSync('rideRecords', records);
+        } else {
+          wx.showToast({ title: res.result?.error || '生成失败', icon: 'none' });
+        }
+      },
+      fail: (err) => {
+        console.error('AI分析失败:', err);
+        wx.showToast({ title: '网络错误', icon: 'none' });
+      },
+      complete: () => {
+        this.setData({ aiReportLoading: false });
+      }
     });
   }
 });

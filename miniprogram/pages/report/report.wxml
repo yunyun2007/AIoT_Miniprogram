@@ -166,4 +166,22 @@
       </view>
     </view>
   </view>
+
+  <!-- AI 骑行分析报告 -->
+  <view class="card ai-report-card" wx:if="{{aiReport}}">
+    <view class="card-header">
+      <van-icon name="chat-o" size="20" color="#07c160" />
+      <text class="card-title">AI 骑行分析</text>
+      <text class="ai-report-time" wx:if="{{aiReportGeneratedAt}}">{{aiReportGeneratedAt}}</text>
+    </view>
+    <view class="ai-report-content">
+      <text>{{aiReport}}</text>
+    </view>
+  </view>
+
+  <view class="ai-generate-btn" wx:else>
+    <van-button type="primary" size="large" loading="{{aiReportLoading}}" bindtap="generateAIReport" round>
+      <van-icon name="chat-o" wx:if="{{!aiReportLoading}}" /> 生成 AI 分析报告
+    </van-button>
+  </view>
 </view>

@@ -437,9 +437,171 @@ const iotdaActions = {
   }
 };
 
+// ========== AI分析功能 ==========
+const fs = require('fs');
+const path = require('path');
+
+// 从config.env读取API Key
+function getMinimaxApiKey() {
+  try {
+    const envPath = path.join(__dirname, 'config.env');
+    const envContent = fs.readFileSync(envPath, 'utf8');
+    const match = envContent.match(/MINIMAX_API_KEY=(.+)/);
+    return match ? match[1].trim() : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+const AI_CONFIG = {
+  minimaxApiKey: getMinimaxApiKey(),
+  minimaxEndpoint: 'https://api.minimax.chat/v1/text/chatcompletion_pro002'
+};
+
+// 调用Minimax API生成骑行分析报告
+async function callMinimaxAPI(prompt) {
+  const data = JSON.stringify({
+    model: 'abab6.5s-chat',
+    tokens_to_generate: 512,
+    messages: [{
+      role: 'user',
+      content: prompt
+    }]
+  });
+
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.minimax.chat',
+      port: 443,
+      path: '/v1/text/chatcompletion_pro002',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data),
+        'Authorization': `Bearer ${AI_CONFIG.minimaxApiKey}`
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          const result = JSON.parse(body);
+          if (result.choices && result.choices[0] && result.choices[0].messages) {
+            resolve(result.choices[0].messages.content);
+          } else if (result.choices && result.choices[0] && result.choices[0].text) {
+            resolve(result.choices[0].text);
+          } else {
+            reject(new Error(result.choices?.message?.content || '解析失败'));
+          }
+        } catch (e) {
+          reject(new Error('解析响应失败: ' + body));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.setTimeout(30000, () => {
+      req.destroy();
+      reject(new Error('请求超时'));
+    });
+    req.write(data);
+    req.end();
+  });
+}
+
+// 生成骑行数据AI分析报告
+async function generateRideAnalysis(rideRecords) {
+  if (!rideRecords || rideRecords.length === 0) {
+    return '暂无骑行数据，无法生成分析报告。请先完成一次骑行。';
+  }
+
+  // 按日期排序，取最近的数据
+  const sorted = [...rideRecords].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const latest = sorted[0];
+
+  // 计算历史统计数据
+  const totalRides = sorted.length;
+  const totalDistance = sorted.reduce((sum, r) => sum + (r.distance || 0), 0);
+  const totalDuration = sorted.reduce((sum, r) => sum + (r.duration || 0), 0);
+  const totalCalories = sorted.reduce((sum, r) => sum + (r.calories || 0), 0);
+  const avgDistance = totalDistance / totalRides;
+  const avgSpeed = sorted.reduce((sum, r) => sum + (r.avgSpeed || 0), 0) / totalRides;
+
+  // 格式化单次骑行时长
+  const formatDuration = (seconds) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}小时${m}分钟`;
+    if (m > 0) return `${m}分钟${s}秒`;
+    return `${s}秒`;
+  };
+
+  // 构建prompt
+  const prompt = `你是一个专业的骑行数据分析助手。请分析以下骑行数据，生成一份简洁的中文骑行报告。
+
+【本次骑行数据】
+- 日期：${latest.date}
+- 里程：${latest.distance} 公里
+- 时长：${formatDuration(latest.duration)}
+- 平均速度：${latest.avgSpeed || 0} km/h
+- 消耗卡路里：${latest.calories || 0} 千卡
+
+【历史统计】（基于${totalRides}次骑行记录）
+- 历史平均里程：${avgDistance.toFixed(2)} km
+- 历史平均速度：${avgSpeed.toFixed(1)} km/h
+- 历史总里程：${totalDistance.toFixed(2)} km
+- 历史总时长：${formatDuration(totalDuration)}
+- 历史总消耗卡路里：${totalCalories} 千卡
+
+请从以下方面分析：
+1. 本次骑行表现评价（结合历史数据）
+2. 与历史平均水平的对比（进步/退步）
+3. 改进建议（速度控制、体力分配等）
+4. 下次骑行目标建议
+
+要求：报告简洁，300字以内，用分段标题组织。`;
+
+  try {
+    const report = await callMinimaxAPI(prompt);
+    return report;
+  } catch (error) {
+    console.error('Minimax API调用失败:', error);
+    throw error;
+  }
+}
+
+// AI分析操作
+const aiActions = {
+  // 生成骑行分析报告
+  analyzeRideData: async (event) => {
+    try {
+      const rideRecords = event.rideRecords || [];
+      const report = await generateRideAnalysis(rideRecords);
+      return { success: true, data: { report, generatedAt: new Date().toISOString() } };
+    } catch (error) {
+      console.error('AI分析失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
+};
+
 // ========== 云函数入口 ==========
 exports.main = async (event, context) => {
-  // 先检查是否是IoTDA相关操作
+  // 先检查是否是AI分析操作
+  if (event.action && aiActions[event.action]) {
+    try {
+      const result = await aiActions[event.action](event);
+      return result;
+    } catch (error) {
+      console.error('AI分析Error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // 检查是否是IoTDA相关操作
   if (event.action && iotdaActions[event.action]) {
     try {
       const result = await iotdaActions[event.action](event);

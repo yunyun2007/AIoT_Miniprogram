@@ -13,4 +13,7 @@ $RECYCLE.BIN/
 # Node.js
 node_modules/
 
+# 微信云函数配置（包含敏感API Key）
+cloudfunctions/**/config.env
+
 info.md

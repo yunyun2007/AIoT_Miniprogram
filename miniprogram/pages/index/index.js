@@ -433,6 +433,37 @@ Page({
 
     wx.setStorageSync('rideRecords', records);
     wx.removeStorageSync('currentRide');
+
+    // 自动生成AI分析报告（异步，不阻塞UI）
+    this.autoGenerateAIReport(records);
+  },
+
+  // 自动生成AI分析报告
+  autoGenerateAIReport(records) {
+    if (records.length === 0) return;
+
+    wx.cloud.callFunction({
+      name: 'quickstartFunctions',
+      data: {
+        action: 'analyzeRideData',
+        rideRecords: records
+      },
+      success: (res) => {
+        console.log('自动AI分析完成:', res);
+        if (res.result && res.result.success) {
+          const { report, generatedAt } = res.result.data;
+          // 更新最新记录的AI报告
+          const sorted = records.sort((a, b) => new Date(b.date) - new Date(a.date));
+          const latestRecord = sorted[0];
+          latestRecord.aiReport = report;
+          latestRecord.aiReportGeneratedAt = generatedAt;
+          wx.setStorageSync('rideRecords', records);
+        }
+      },
+      fail: (err) => {
+        console.error('自动AI分析失败:', err);
+      }
+    });
   },
 
   // 查看轨迹地图

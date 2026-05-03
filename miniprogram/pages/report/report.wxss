@@ -301,3 +301,36 @@
   font-size: 22rpx;
   color: #999;
 }
+
+/* AI 报告卡片 */
+.ai-report-card .card-header {
+  border-bottom: none;
+}
+
+.ai-report-card .card-header .van-icon {
+  margin-right: 8rpx;
+}
+
+.ai-report-time {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.ai-report-content {
+  padding: 0 30rpx 30rpx;
+  font-size: 28rpx;
+  color: #666;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.ai-generate-btn {
+  padding: 30rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.ai-generate-btn .van-button {
+  width: 100%;
+}
