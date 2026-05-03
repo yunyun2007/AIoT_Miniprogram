@@ -461,7 +461,7 @@ const AI_CONFIG = {
 // 调用Minimax API生成骑行分析报告
 async function callMinimaxAPI(prompt) {
   const data = JSON.stringify({
-    model: 'anthropic Sonnet',
+    model: 'MiniMax-M2.7',
     max_tokens: 512,
     messages: [{
       role: 'user',
