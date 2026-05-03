@@ -144,7 +144,7 @@ Page({
     this.setData({ 'currentCourse.color': e.currentTarget.dataset.color });
   },
 
-  // ==================== 核心：地图选点 ====================
+  // ==================== 核心：地图选点（已修复） ====================
   async chooseLocation() {
     try {
       const setting = await wx.getSetting();
@@ -152,16 +152,27 @@ Page({
         await wx.authorize({ scope: 'scope.userLocation' });
       }
 
-      const location = await wx.chooseLocation({
-        latitude: this.data.currentCourse.latitude || undefined,
-        longitude: this.data.currentCourse.longitude || undefined
+      // 手动包装成 Promise，确保兼容性
+      const location = await new Promise((resolve, reject) => {
+        wx.chooseLocation({
+          latitude: this.data.currentCourse.latitude || undefined,
+          longitude: this.data.currentCourse.longitude || undefined,
+          success: resolve,
+          fail: reject
+        });
       });
 
+      // 关键：增加判空，防止用户取消时报错
+      if (!location || !location.name) {
+        console.log('用户取消或未选择有效位置');
+        return;
+      }
+
       this.setData({
-        'currentCourse.locationName': location.name || location.address,
+        'currentCourse.locationName': location.name || location.address || '',
         'currentCourse.latitude': location.latitude,
         'currentCourse.longitude': location.longitude,
-        'currentCourse.address': location.address
+        'currentCourse.address': location.address || ''
       });
 
       Toast.success('位置已绑定');
@@ -170,7 +181,10 @@ Page({
       if (err.errMsg && err.errMsg.includes('fail auth')) {
         Toast.fail('请授权位置权限');
         wx.openSetting();
-      } else if (err.errMsg && !err.errMsg.includes('cancel')) {
+      } else if (err.errMsg && err.errMsg.includes('cancel')) {
+        // 用户取消，静默处理，不报错
+        console.log('用户取消选择位置');
+      } else {
         Toast.fail('选择位置失败');
       }
     }
