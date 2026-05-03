@@ -125,7 +125,7 @@ const deleteRecord = async (event) => {
 // ========== IoTDA功能 ==========
 const IOTDA_CONFIG = {
   region: 'cn-east-3',
-  brokerUrl: 'iotda.cn-east-3.myhuaweicloud.com',
+  brokerUrl: '1fc5f68721.st1.iotda-app.cn-east-3.myhuaweicloud.com',
   iamEndpoint: 'iam.cn-east-3.myhuaweicloud.com'
 };
 
@@ -213,11 +213,12 @@ async function getIAMToken() {
 
 // 获取设备属性
 async function getDeviceProperties(deviceId, projectId, token) {
+  // 获取设备影子，然后从中提取属性
   return new Promise((resolve, reject) => {
     const options = {
       hostname: IOTDA_CONFIG.brokerUrl,
       port: 443,
-      path: `/v5/iot/${projectId}/devices/${deviceId}/properties`,
+      path: `/v5/iot/${projectId}/devices/${deviceId}/shadow`,
       method: 'GET',
       headers: {
         'X-Auth-Token': token,
