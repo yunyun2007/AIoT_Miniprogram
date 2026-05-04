@@ -129,14 +129,22 @@ const IOTDA_CONFIG = {
   iamEndpoint: 'iam.cn-east-3.myhuaweicloud.com'
 };
 
-// 临时配置存储
+// 临时配置存储（硬编码配置）
 let tempConfig = {
-  deviceId: '',
-  deviceSecret: '',
-  projectId: '',
-  iamUsername: '',
-  iamPassword: ''
+  deviceId: '69ae7ce618855b39c5010ef5_myArduino',
+  deviceSecret: '874f2bccd039c02e18e18aff8fdb1f06bd9f9c7d9c5906e6439a4227c532b0e6',
+  projectId: 'd62df77446b8430fb0e71b8303fb3f29',
+  iamUsername: 'tester_miniprogram',
+  iamPassword: 'CyT12346'
 };
+
+// 汉字转Unicode（避免中文乱码）
+function encodeChinese(str) {
+  if (!str) return str;
+  return str.replace(/[一-龥]/g, (match) => {
+    return '\\u' + match.charCodeAt(0).toString(16).padStart(4, '0');
+  });
+}
 
 // 获取IAM Token（使用用户名密码认证）
 async function getIAMToken() {
@@ -318,6 +326,68 @@ async function updateDeviceShadow(deviceId, projectId, token, desiredProps) {
   });
 }
 
+// 发送命令/事件到设备
+async function sendCommandToDevice(deviceId, projectId, token, commandName, params) {
+  return new Promise((resolve, reject) => {
+    console.log('[Cloud] sendCommandToDevice 被调用');
+    console.log('[Cloud] deviceId:', deviceId, 'projectId:', projectId, 'commandName:', commandName);
+    console.log('[Cloud] params:', JSON.stringify(params));
+
+    // 确保paras不为空
+    if (!params || Object.keys(params).length === 0) {
+      console.error('[Cloud] 参数为空，拒绝发送');
+      return reject(new Error('参数不能为空'));
+    }
+
+    // 事件下发JSON格式
+    const commandData = JSON.stringify({
+      event_type: commandName,
+      paras: params
+    });
+    console.log('[Cloud] 发送的数据:', commandData);
+
+    const options = {
+      hostname: IOTDA_CONFIG.brokerUrl,
+      port: 443,
+      path: `/v5/iot/${projectId}/devices/${deviceId}/commands`,
+      method: 'POST',
+      headers: {
+        'X-Auth-Token': token,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(commandData)
+      }
+    };
+
+    console.log('[Cloud] 开始发送HTTPS请求');
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        console.log('[Cloud] 命令下发响应状态:', res.statusCode);
+        console.log('[Cloud] 命令下发响应体:', body.substring(0, 500));
+        if (res.statusCode === 200 || res.statusCode === 201) {
+          resolve({ success: true, data: JSON.parse(body) });
+        } else {
+          reject(new Error(`命令下发失败: ${res.statusCode} ${body}`));
+        }
+      });
+    });
+
+    req.on('error', (e) => {
+      console.error('[Cloud] HTTPS请求错误:', e.message);
+      reject(e);
+    });
+    req.setTimeout(15000, () => {
+      console.error('[Cloud] 请求超时');
+      req.destroy();
+      reject(new Error('请求超时'));
+    });
+    req.write(commandData);
+    req.end();
+    console.log('[Cloud] 请求已发送，等待响应');
+  });
+}
+
 // IoTDA操作
 const iotdaActions = {
   setConfig: (event) => {
@@ -355,28 +425,52 @@ const iotdaActions = {
     return { success: true, data: props };
   },
 
-  // 下发导航指令到设备
+  // 下发导航指令到设备（通过事件订阅主题）- 异步版本
   setNavCommand: async (event) => {
+    console.log('[Cloud] setNavCommand被调用');
+    console.log('[Cloud] event:', JSON.stringify(event));
+
     if (!tempConfig.deviceId || !tempConfig.projectId) {
+      console.log('[Cloud] 错误: 设备信息未配置');
       return { success: false, error: '请先配置设备信息' };
     }
     if (!tempConfig.iamUsername || !tempConfig.iamPassword) {
+      console.log('[Cloud] 错误: IAM用户名或密码未配置');
       return { success: false, error: '请先配置IAM用户名和密码' };
     }
 
     const { navInstruction, navDistance, navDestination, navLatitude, navLongitude, navStatus } = event;
+    console.log('[Cloud] 收到导航参数 - navInstruction:', navInstruction, 'navDestination:', navDestination);
 
-    const desiredProps = {};
-    if (navInstruction !== undefined) desiredProps.navInstruction = navInstruction;
-    if (navDistance !== undefined) desiredProps.navDistance = navDistance;
-    if (navDestination !== undefined) desiredProps.navDestination = navDestination;
-    if (navLatitude !== undefined) desiredProps.navLatitude = navLatitude;
-    if (navLongitude !== undefined) desiredProps.navLongitude = navLongitude;
-    if (navStatus !== undefined) desiredProps.navStatus = navStatus;
+    // 封装导航参数，汉字转Unicode避免乱码
+    const navParams = {};
+    if (navInstruction !== undefined) navParams.navInstruction = encodeChinese(navInstruction);
+    if (navDistance !== undefined) navParams.navDistance = navDistance;
+    if (navDestination !== undefined) navParams.navDestination = encodeChinese(navDestination);
+    if (navLatitude !== undefined) navParams.navLatitude = navLatitude;
+    if (navLongitude !== undefined) navParams.navLongitude = navLongitude;
+    if (navStatus !== undefined) navParams.navStatus = navStatus;
 
-    const token = await getIAMToken();
-    const result = await updateDeviceShadow(tempConfig.deviceId, tempConfig.projectId, token, desiredProps);
-    return { success: true, data: result };
+    console.log('[Cloud] 编码后的导航参数:', JSON.stringify(navParams));
+
+    // 触发异步任务并等待完成（最多2秒）
+    const tokenPromise = getIAMToken().then(token => {
+      console.log('[Cloud] 获取Token成功，开始发送命令');
+      return sendCommandToDevice(tempConfig.deviceId, tempConfig.projectId, token, 'NavigationCommand', navParams);
+    }).then(result => {
+      console.log('[Cloud] 导航指令发送成功, result:', JSON.stringify(result));
+    }).catch(err => {
+      console.error('[Cloud] 异步执行出错:', err.message);
+    });
+
+    // 等待异步任务完成（最多2秒）
+    await Promise.race([
+      tokenPromise,
+      new Promise(resolve => setTimeout(resolve, 2000))
+    ]);
+
+    console.log('[Cloud] 返回成功');
+    return { success: true, message: '导航指令已发送' };
   },
 
   // 设置设备属性

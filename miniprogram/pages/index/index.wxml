@@ -69,10 +69,6 @@
         <text class="imu-label">偏航角</text>
         <text class="imu-value">{{yawText}}°</text>
       </view>
-      <view class="imu-item">
-        <text class="imu-label">云端速度</text>
-        <text class="imu-value">{{cloudSpeed}} km/h</text>
-      </view>
     </view>
   </view>
 

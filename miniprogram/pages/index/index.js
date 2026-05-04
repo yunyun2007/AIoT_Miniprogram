@@ -33,7 +33,13 @@ Page({
     // 课程提醒相关
     reminderCourse: null,
     reminderDistance: null,
-    reminderMinutes: null
+    reminderMinutes: null,
+    // 骑行起始时间（用于忽略头1秒位移）
+    rideStartTime: null,
+    // 上一次GPS更新时间（用于计算速度）
+    lastLocationTime: null,
+    lastLat: null,
+    lastLon: null
   },
 
   onShow() {
@@ -90,19 +96,18 @@ Page({
     }
   },
 
-  // 处理云端传感器数据
+  // 处理云端传感器数据（仅用于IMU和碰撞检测，不用于GPS）
   handleCloudSensorData(data) {
     console.log('[Index] 收到云端传感器数据:', JSON.stringify(data));
 
     const app = getApp();
     const { crashDetector } = app.globalData;
 
-    // 更新本地显示（防御性检查）
+    // 更新IMU数据显示（如果有云端数据的话）
+    // 注意：GPS数据不再从云端获取，只使用手机GPS
     try {
       this.setData({
         cloudSpeed: data?.speed ?? 0,
-        cloudLatitude: data?.latitude ?? null,
-        cloudLongitude: data?.longitude ?? null,
         accelerationX: data?.accelerationX ?? 0,
         accelerationY: data?.accelerationY ?? 0,
         accelerationZ: data?.accelerationZ ?? 0,
@@ -116,7 +121,7 @@ Page({
         rollText: (data?.roll ?? 0).toFixed(1),
         pitchText: (data?.pitch ?? 0).toFixed(1),
         yawText: (data?.yaw ?? 0).toFixed(1),
-        showCloudData: true
+        showCloudData: !!data?.accelerationX // 只有IMU数据时才显示云端状态
       });
       console.log('[Index] setData成功, cloudSpeed:', data?.speed);
     } catch (e) {
@@ -126,12 +131,7 @@ Page({
     // 更新app全局数据
     app.globalData.sensorData = data;
 
-    // 如果骑行中且有云端GPS数据，更新位置
-    if (this.data.isTracking && data?.latitude && data?.longitude) {
-      this.updateLocationFromCloud(data);
-    }
-
-    // 处理碰撞检测
+    // 处理碰撞检测（使用手机GPS定位）
     if (crashDetector && this.data.isTracking) {
       try {
         const result = crashDetector.processAcceleration({
@@ -237,18 +237,27 @@ Page({
   startRide() {
     if (this.data.isTracking) return;
 
-    // 必须云端已连接才能开始骑行（使用ESP32的GPS数据）
-    if (!this.data.cloudConnected) {
-      wx.showToast({ title: '请先连接云端', icon: 'none' });
-      return;
-    }
+    // 启动手机GPS定位（5秒更新频率，模拟ESP32）
+    this.startLocationUpdate5s();
 
     this.setData({
       isTracking: true,
       isPaused: false,
       startTime: Date.now(),
+      rideStartTime: Date.now(), // 记录骑行开始时间，用于忽略头1秒位移
       duration: 0,
-      durationText: '00:00:00'
+      durationText: '00:00:00',
+      // 重置GPS数据，使用手机GPS
+      showCloudData: false,
+      cloudLatitude: null,
+      cloudLongitude: null,
+      // 重置GPS计算相关
+      lastLocationTime: null,
+      lastLat: null,
+      lastLon: null,
+      distance: 0,
+      speed: 0,
+      avgSpeed: 0
     });
 
     this.startTimer();
@@ -266,7 +275,7 @@ Page({
     });
   },
 
-  // 启动后台定位
+  // 启动后台定位（5秒更新频率，模拟ESP32）
   startLocationUpdate() {
     wx.startLocationUpdateBackground({
       success: () => {
@@ -283,37 +292,94 @@ Page({
     });
   },
 
+  // 启动定位，5秒更新间隔
+  startLocationUpdate5s() {
+    wx.startLocationUpdateBackground({
+      locationUpdateInterval: 5000, // 5秒
+      success: () => {
+        console.log('[Index] 定位服务已启动，5秒更新');
+        wx.onLocationChange(this.onLocationChange);
+      },
+      fail: (err) => {
+        console.error('[Index] 后台定位失败，尝试普通定位', err);
+        wx.startLocationUpdate({
+          success: () => {
+            console.log('[Index] 普通定位服务已启动');
+            wx.onLocationChange(this.onLocationChange);
+          },
+          fail: (err2) => {
+            console.error('[Index] 定位失败', err2);
+            wx.showToast({ title: '定位失败', icon: 'none' });
+          }
+        });
+      }
+    });
+  },
+
   // 位置变化回调（需用箭头函数保持this指向）
   onLocationChange: function(res) {
-    const { latitude, longitude, speed, altitude } = res;
+    const { latitude, longitude, altitude } = res;
     const data = this.data;
 
     if (!data.isTracking || data.isPaused) return;
 
-    // 如果有云端数据，优先使用云端GPS
-    if (data.showCloudData && data.cloudLatitude) {
-      return; // 云端GPS会在handleCloudSensorData中处理
+    const now = Date.now();
+
+    // 如果没有上次GPS数据，初始化并记录
+    if (data.lastLocationTime === null || data.lastLat === null) {
+      this.setData({
+        latitude,
+        longitude,
+        speed: 0, // 初始速度为0，等待下次计算
+        pathPoints: [{ latitude, longitude }],
+        lastLocationTime: now,
+        lastLat: latitude,
+        lastLon: longitude
+      });
+      return;
     }
 
     // 计算与上一个点的距离
-    const lastPoint = data.pathPoints[data.pathPoints.length - 1];
-    const dist = this.calculateDistance(
-      lastPoint.latitude, lastPoint.longitude,
-      latitude, longitude
-    );
+    const dist = this.calculateDistance(data.lastLat, data.lastLon, latitude, longitude);
+    const timeDiff = (now - data.lastLocationTime) / 1000; // 秒
 
-    // 过滤漂移（距离小于5米视为GPS漂移）
-    if (dist < 0.005) return;
+    // 忽略骑行开始头1秒的位移（防止手机GPS初始化导致的大位移）
+    const timeSinceStart = now - (data.rideStartTime || 0);
+    if (timeSinceStart < 1000) {
+      console.log('[Index] 忽略头1秒位移');
+      // 更新位置和时间但不计入距离
+      this.setData({
+        latitude,
+        longitude,
+        speed: 0,
+        lastLocationTime: now,
+        lastLat: latitude,
+        lastLon: longitude
+      });
+      return;
+    }
 
+    // 过滤GPS漂移（距离小于5米且时间间隔太短视为漂移）
+    if (dist < 0.005 && timeDiff < 2) {
+      console.log('[Index] 过滤GPS漂移');
+      return;
+    }
+
+    // 计算速度（km/h）：距离(km)/时间(h)
+    let currentSpeed = 0;
+    if (timeDiff > 0) {
+      currentSpeed = ((dist / timeDiff) * 3600).toFixed(1);
+    }
+
+    // 更新距离和轨迹
     const newDistance = data.distance + dist;
     const newPoints = [...data.pathPoints, { latitude, longitude }];
 
-    // 计算速度（m/s 转 km/h）
-    const currentSpeed = speed > 0 ? (speed * 3.6).toFixed(1) : 0;
-    const avgSpeed = (newDistance / (data.duration / 3600)).toFixed(1);
+    // 计算平均速度（km/h）
+    const avgSpeed = data.duration > 0 ? (newDistance / (data.duration / 3600)).toFixed(1) : 0;
 
     // 计算卡路里（简化公式：体重70kg，MET值约8）
-    const caloriesPerKm = 35; // 约35千卡/公里
+    const caloriesPerKm = 35;
     const newCalories = Math.floor(newDistance * caloriesPerKm);
 
     this.setData({
@@ -324,7 +390,11 @@ Page({
       avgSpeed: avgSpeed > 0 ? avgSpeed : 0,
       distance: parseFloat(newDistance.toFixed(2)),
       calories: newCalories,
-      pathPoints: newPoints
+      pathPoints: newPoints,
+      // 更新上次GPS数据
+      lastLocationTime: now,
+      lastLat: latitude,
+      lastLon: longitude
     });
 
     this.saveCurrentData();

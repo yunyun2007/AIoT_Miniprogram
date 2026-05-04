@@ -466,6 +466,7 @@ Page({
   },
 
   sendNavCommand(navData) {
+    console.log('[Nav] 准备发送导航指令:', JSON.stringify(navData));
     wx.cloud.callFunction({
       name: CLOUD_FUNCTION_NAME,
       data: {
@@ -473,9 +474,12 @@ Page({
         ...navData
       }
     }).then(res => {
-      console.log('导航指令发送结果:', res.result);
+      console.log('[Nav] 云函数调用成功, result:', JSON.stringify(res.result));
+      if (!res.result?.success) {
+        console.error('[Nav] 云函数返回错误:', res.result?.error);
+      }
     }).catch(err => {
-      console.error('发送导航指令失败:', err?.message || err);
+      console.error('[Nav] 发送导航指令失败:', err?.message || err);
     });
   },
 
