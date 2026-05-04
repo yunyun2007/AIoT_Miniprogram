@@ -4,6 +4,9 @@ cloudfunctions/**/config.env
 # 微信小程序npm包
 miniprogram/miniprogram_npm/
 
+# npm lock file
+miniprogram/package-lock.json
+
 # 微信开发者工具生成
 sourcemap.zip
 
