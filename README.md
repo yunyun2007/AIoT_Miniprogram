@@ -75,33 +75,10 @@ AIoT_Miniprogram/
 └── README.md
 ```
 
-## 配置说明
-
-### 1. 华为云 IoTDA 配置（已硬编码在云函数中）
-
-| 配置项 | 值 |
-|--------|-----|
-| 设备 ID | `69ae7ce618855b39c5010ef5_myArduino` |
-| 项目 ID | `d62df77446b8430fb0e71b8303fb3f29` |
-| IAM 用户名 | `tester_miniprogram` |
-| IAM 密码 | `CyT12346` |
-
-### 2. API 密钥（config.env）
-
-```env
-HUAWEI_MAAS_API_KEY=xP8iwxOzKudY1Mn2MPn7hNwImW2MwT3sVAepK1sRLl1S27OIJp3NudeGPZaI0hMGUPqVKwa9cDaEc2HOYuyFpg
-```
-
-### 3. 小程序隐私权限
-
-需要配置以下权限：
-- `scope.userLocation` - 位置信息
-- 后台定位模式 (`requiredBackgroundModes: ["location"]`)
-
 ## 主要功能实现
 
 ### GPS 定位
-- 使用手机 GPS 替代 ESP32 GPS
+- 使用 ESP32 GPS
 - 5 秒更新间隔 (`locationUpdateInterval: 5000`)
 - 骑行开始头 1 秒位移忽略（防止初始漂移）
 - 漂移过滤：距离小于 5 米视为无效
