@@ -441,12 +441,14 @@ const iotdaActions = {
 const fs = require('fs');
 const path = require('path');
 
+console.log('=== 云函数入口开始 ===');
+
 // 从config.env读取API Key
-function getMinimaxApiKey() {
+function getHuaweiApiKey() {
   try {
     const envPath = path.join(__dirname, 'config.env');
     const envContent = fs.readFileSync(envPath, 'utf8');
-    const match = envContent.match(/MINIMAX_API_KEY=(.+)/);
+    const match = envContent.match(/HUAWEI_MAAS_API_KEY=(.+)/);
     return match ? match[1].trim() : '';
   } catch (e) {
     return '';
@@ -454,48 +456,54 @@ function getMinimaxApiKey() {
 }
 
 const AI_CONFIG = {
-  minimaxApiKey: getMinimaxApiKey(),
-  minimaxEndpoint: 'https://api.minimaxi.com/anthropic'
+  huaweiApiKey: getHuaweiApiKey(),
+  huaweiEndpoint: 'https://api.modelarts-maas.com/v2/chat/completions',
+  model: 'deepseek-v4-flash'
 };
 
-// 调用Minimax API生成骑行分析报告
-async function callMinimaxAPI(prompt) {
+// 调用华为云MAAS API生成骑行分析报告
+async function callHuaweiMAAS(prompt) {
   const data = JSON.stringify({
-    model: 'MiniMax-M2.7',
-    max_tokens: 512,
-    messages: [{
-      role: 'user',
-      content: prompt
-    }]
+    model: AI_CONFIG.model,
+    messages: [
+      { role: 'system', content: '你是一个专业的骑行数据分析助手，友善且专业。' },
+      { role: 'user', content: prompt }
+    ]
   });
 
   return new Promise((resolve, reject) => {
+    console.log('开始请求华为MAAS API');
+    console.log('API地址:', AI_CONFIG.huaweiEndpoint);
+    console.log('Model:', AI_CONFIG.model);
+    console.log('API Key前10位:', AI_CONFIG.huaweiApiKey.substring(0, 10));
+
+    const url = new URL(AI_CONFIG.huaweiEndpoint);
     const options = {
-      hostname: 'api.minimaxi.com',
+      hostname: url.hostname,
       port: 443,
-      path: '/v1/anthropic',
+      path: url.pathname,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(data),
-        'Authorization': `Bearer ${AI_CONFIG.minimaxApiKey}`
+        'Authorization': `Bearer ${AI_CONFIG.huaweiApiKey}`
       }
     };
 
+    console.log('发送请求...');
     const req = https.request(options, (res) => {
+      console.log('收到响应，状态码:', res.statusCode);
       let body = '';
       res.on('data', chunk => body += chunk);
       res.on('end', () => {
-        console.log('Minimax API响应状态:', res.statusCode);
-        console.log('Minimax API响应体:', body.substring(0, 500));
+        console.log('响应数据长度:', body.length);
+        console.log('华为MAAS API响应体前500字符:', body.substring(0, 500));
         try {
           const result = JSON.parse(body);
-          if (result.content && result.content[0] && result.content[0].text) {
-            resolve(result.content[0].text);
+          if (result.choices && result.choices[0] && result.choices[0].message) {
+            resolve(result.choices[0].message.content);
           } else if (result.error) {
             reject(new Error('API错误: ' + (result.error.message || JSON.stringify(result.error))));
-          } else if (result.base_resp && result.base_resp.status_code !== 0) {
-            reject(new Error('API错误: ' + (result.base_resp.status_msg || result.base_resp.status_code)));
           } else {
             reject(new Error('响应格式未知: ' + body.substring(0, 200)));
           }
@@ -505,13 +513,18 @@ async function callMinimaxAPI(prompt) {
       });
     });
 
-    req.on('error', reject);
-    req.setTimeout(30000, () => {
+    req.on('error', (e) => {
+      console.log('请求错误:', e.message);
+      reject(e);
+    });
+    req.setTimeout(10000, () => {
+      console.log('请求超时');
       req.destroy();
       reject(new Error('请求超时'));
     });
     req.write(data);
     req.end();
+    console.log('请求已发送');
   });
 }
 
@@ -569,10 +582,10 @@ async function generateRideAnalysis(rideRecords) {
 要求：报告简洁，300字以内，用分段标题组织。`;
 
   try {
-    const report = await callMinimaxAPI(prompt);
+    const report = await callHuaweiMAAS(prompt);
     return report;
   } catch (error) {
-    console.error('Minimax API调用失败:', error);
+    console.error('华为MAAS API调用失败:', error);
     throw error;
   }
 }
@@ -582,8 +595,8 @@ const aiActions = {
   // 生成骑行分析报告
   analyzeRideData: async (event) => {
     // 检查API Key是否配置
-    if (!AI_CONFIG.minimaxApiKey || AI_CONFIG.minimaxApiKey === 'YOUR_MINIMAX_API_KEY') {
-      return { success: false, error: '请先配置Minimax API Key' };
+    if (!AI_CONFIG.huaweiApiKey) {
+      return { success: false, error: '请先配置华为云MAAS API Key' };
     }
 
     try {
@@ -600,15 +613,20 @@ const aiActions = {
   }
 };
 
-// ========== 云函数入口 ==========
+// 云函数入口
 exports.main = async (event, context) => {
+  console.log('=== 云函数被调用 ===');
+  console.log('event:', JSON.stringify(event).substring(0, 200));
+
   // 先检查是否是AI分析操作
   if (event.action && aiActions[event.action]) {
     try {
+      console.log('执行AI分析 action:', event.action);
       const result = await aiActions[event.action](event);
+      console.log('AI分析结果:', JSON.stringify(result).substring(0, 200));
       return result;
     } catch (error) {
-      console.error('AI分析Error:', error);
+      console.error('AI分析Error:', error.message);
       return { success: false, error: error.message };
     }
   }
