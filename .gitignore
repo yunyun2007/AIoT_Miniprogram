@@ -1,7 +1,11 @@
-# Windows
-[Dd]esktop.ini
-Thumbs.db
-$RECYCLE.BIN/
+# 微信云函数配置（包含敏感API Key）
+cloudfunctions/**/config.env
+
+# 微信小程序npm包
+miniprogram/miniprogram_npm/
+
+# 微信开发者工具生成
+sourcemap.zip
 
 # macOS
 .DS_Store
@@ -12,8 +16,5 @@ $RECYCLE.BIN/
 
 # Node.js
 node_modules/
-
-# 微信云函数配置（包含敏感API Key）
-cloudfunctions/**/config.env
 
 info.md
